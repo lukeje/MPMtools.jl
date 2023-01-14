@@ -72,9 +72,10 @@ in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.o
 function calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
     
     @assert all(size(PDw.signal)==size(T1w.signal)) "PDw.signal and T1w.signal must be the same size!"
+    @assert (PDw.TR ≠ T1w.TR) | (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
     
     if (PDw.signal ≠ 0) & (T1w.signal ≠ 0) & (PDw.τ ≠ 0) & (T1w.τ ≠ 0)
-        return PDw.signal * T1w.signal * ( T1w.TR * PDw.τ / T1w.τ - PDw.TR * T1w.τ / PDw.τ )  / ( PDw.signal * T1w.TR * PDw.τ - T1w.signal * PDw.TR * T1w.τ )
+        return @. PDw.signal * T1w.signal * ( T1w.TR * PDw.τ / T1w.τ - PDw.TR * T1w.τ / PDw.τ )  / ( PDw.signal * T1w.TR * PDw.τ - T1w.signal * PDw.TR * T1w.τ )
     else # cannot get sensible answer
         return missing
     end
@@ -107,9 +108,10 @@ in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.o
 function calculateR1(PDw::WeightedContrast, T1w::WeightedContrast)
 
     @assert all(size(PDw.signal)==size(T1w.signal)) "PDw.signal and T1w.signal must be the same size!"
+    @assert (PDw.TR ≠ T1w.TR) | (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
         
     if (PDw.signal ≠ 0) & (T1w.signal ≠ 0) & (PDw.τ ≠ 0) & (T1w.τ ≠ 0)
-        return  0.5 * ( PDw.signal * PDw.τ / PDw.TR - T1w.signal * T1w.τ / T1w.TR ) / ( T1w.signal / T1w.τ - PDw.signal / PDw.τ )
+        return  @. 0.5 * ( PDw.signal * PDw.τ / PDw.TR - T1w.signal * T1w.τ / T1w.TR ) / ( T1w.signal / T1w.τ - PDw.signal / PDw.τ )
     else # cannot get sensible answer
         return missing
     end
@@ -122,16 +124,12 @@ R2* estimation using an implementation of the ESTATICS model (Weiskopf2014)
 
 # Arguments
 array of WeightedMultiechoContrast (one per contrast)
-- Voxels must correspond between the weightings (i.e. the images should
-    have been resliced to the same space), but the sampled TEs may be
+- Voxels must correspond between the weightings (i.e. the images should have been resliced to the same space), but the sampled TEs may be
     different.
 - nTEs must be at least 2 for each weighting.
-- Because log(0) is ill-defined, zero values in any voxel will result
-    in NaN output for that voxel. To avoid potentially biasing the data,
-    we do not modify the input in any way to avoid this, and leave it to
-    the user to decide how to handle this case, e.g. by removing the
-    corresponding voxels from the input data or replacing zeroes with a
-    small positive number.
+- Because log(0) is ill-defined, zero values in any voxel will result in NaN output for that voxel. To avoid potentially biasing the data,
+    we do not modify the input in any way to avoid this, and leave it to the user to decide how to handle this case, e.g. by removing the
+    corresponding voxels from the input data or replacing zeroes with a small positive number.
 
 # Outputs
 R2star (nVoxelsX x nVoxelsY x ...): the voxelwise-estimated common R2* of the weightings.
@@ -169,7 +167,7 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
         nTEs = length(weighted_dataList[w].TElist)
         @assert (nTEs > 1) "each weighting must have more than one TE"
         
-        localDims=size(weighted_dataList[w].contrastList[1].signal)
+        localDims = size(weighted_dataList[w].contrastList[1].signal)
         @assert (prod(localDims) == nVoxels) "all input data must have the same number of voxels"
         
         rData = zeros(nVoxels, nTEs)
@@ -195,8 +193,7 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
     β[2:end,:] = exp.(β[2:end,:])
     
     # Output
-    # extra unity in reshape argument avoids problems if size(dims)==2
-    return R2s = reshape(β[1,:],dims)
+    return reshape(β[1,:],dims)
 end
 
 end

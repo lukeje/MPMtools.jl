@@ -27,7 +27,7 @@ The steady state signals from the Ernst equation for given flip angle α, TR, an
 α should be in radians, and time units of TR and R₁ should match.
 """
 function ernst(α, TR, R₁)
-    sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
+    @. sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
 end
 
 """
@@ -86,7 +86,7 @@ function inversionRecovery(R₁, TI, η)
 
     @assert (0 < η ≤ 1) "Inversion efficiency η must be between 0 and 1"
     
-    return 1 - 2η * exp(-TI * R₁)
+    return @. 1 - 2η * exp(-TI * R₁)
 end
 
 end
