@@ -12,23 +12,29 @@ struct WeightedContrast
     flipangle::Number
     TR::Number
     B1
+    TE::Union{Number,Missing}
     τ
 
     # define explicit inner constructor as τ is computed from the input
     # and we need to check some parameter bounds
-    function WeightedContrast(signal, flipangle, TR, B1)
+    function WeightedContrast(signal, flipangle, TR, B1, TE)
 
         @assert (TR > 0) "TR must be greater than zero!"
+        @assert all((B1 .> 0) .| ismissing(B1)) "B1 must be greater than zero or missing!"
+        @assert (TE ≥ 0) | ismissing(TE) "TE must be greater than or equal to zero or missing!"
 
         # populate τ field (half angle tangent transform) using provided B1 and flipangle
         τ = 2tan(B1 * flipangle / 2)
 
-        new(signal, flipangle, TR, B1, τ)
+        new(signal, flipangle, TR, B1, TE, τ)
     end
 end
 
+# outer constructor: TE is missing if not provided
+WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR, missing)
+
 # outer constructor: use B1 = 1.0 if B1 not provided
-WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR, 1.0)
+WeightedContrast(signal, flipangle, TR, B1) = WeightedContrast(signal, flipangle, TR, B1, missing)
 
 """
     WeightedMultiechoContrast([w(TE₁), w(TE₂), ...], [TE₁, TE₂, ...])
@@ -37,11 +43,15 @@ Composite type to store multiecho variable flip angle (VFA) MRI data
 """
 struct WeightedMultiechoContrast
     contrastList::Vector{WeightedContrast}
-    TElist::Vector{Number}
 
-    function WeightedMultiechoContrast(contrastList, TElist)
-        @assert (length(contrastList) == length(TElist)) "Number of contrasts must match provided number of echoes!"
-        new(contrastList,TElist)
+    function WeightedMultiechoContrast(contrastList)
+        for w in contrastList
+            @assert w.flipangle == contrastList[1].flipangle "All flip angles must match in WeightedMultiechoContrast!"
+            @assert w.TR == contrastList[1].TR "All TRs must match in WeightedMultiechoContrast!"
+            @assert w.TE > 0 "All TEs must be greater than zero in WeightedMultiechoContrast!"
+            @assert size(w.signal) == size(contrastList[1].signal) "The dimensions of the data must match for all contrasts in  in WeightedMultiechoContrast!"
+        end
+        new(contrastList)
     end
 end
 
@@ -150,29 +160,28 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
     nVoxels = prod(dims)
     nWeighted = length(weighted_dataList)
     
-    # Build regression arrays
-    # Build design matrix
-    D = Array{Float64}(undef, 0, nWeighted+1)
-    for w = 1:nWeighted
-        d = zeros(length(weighted_dataList[w].TElist), nWeighted+1)
-        d[:,1] = -weighted_dataList[w].TElist
-        d[:,w+1] .= 1
-        D = vcat(D, d)
-    end
-    
-    # Build response variable vector
-    y = Array{Float64}(undef, 0, 1)
-    for w = 1:nWeighted
-        
-        nTEs = length(weighted_dataList[w].TElist)
+    # Build design matrix D and response variable y
+    D = zeros(0, nWeighted+1)
+    y = zeros(0, 1)
+    for wIdx = 1:nWeighted
+        w = weighted_dataList[wIdx]
+        nTEs = length(w.contrastList)
         @assert (nTEs > 1) "each weighting must have more than one TE"
+
+        d = zeros(nTEs, nWeighted+1)
+
+        d[:,1] = -[c.TE for c in w.contrastList]
+        @assert (length(unique(d[:,1])) > 1) "each weighting must have more than one unique TE"
         
-        localDims = size(weighted_dataList[w].contrastList[1].signal)
+        d[:,wIdx+1] .= 1
+        D = vcat(D, d)
+        
+        localDims = size(w.contrastList[1].signal)
         @assert (prod(localDims) == nVoxels) "all input data must have the same number of voxels"
         
         rData = zeros(nVoxels, nTEs)
         for t = 1:nTEs
-            rData[:, t] .= weighted_dataList[w].contrastList[t].signal
+            rData[:, t] .= w.contrastList[t].signal
         end
         
         # log(0) is not defined, so warn the user about zeroes in their data 
@@ -190,10 +199,17 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
     
     # Estimate R2*
     β = (transpose(D) * D) \ (transpose(D) * log.(y))
-    β[2:end,:] = exp.(β[2:end,:])
+
+    R2star = reshape(β[1,:],dims)
+
+    extrapolated = Vector{WeightedContrast}(undef,nWeighted)
+    for wIdx = 1:nWeighted
+        w = weighted_dataList[wIdx].contrastList[1]
+        extrapolated[wIdx] = WeightedContrast(exp.(reshape(β[wIdx+1,:],dims)), w.flipangle, w.TR, w.B1, 0)
+    end
     
     # Output
-    return reshape(β[1,:],dims)
+    return R2star, extrapolated
 end
 
 end
