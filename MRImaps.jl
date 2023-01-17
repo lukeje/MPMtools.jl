@@ -3,7 +3,7 @@ module MRImaps
 using LinearAlgebra
 
 """
-    WeightedContrast(signal, flipangle, TR[, B1])
+    WeightedContrast(signal, flipangle, TR, B1[, TE])
 
 Composite type to store variable flip angle (VFA) MRI data
 """
@@ -31,13 +31,10 @@ struct WeightedContrast
 end
 
 # outer constructor: TE is missing if not provided
-WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR, missing)
-
-# outer constructor: use B1 = 1.0 if B1 not provided
 WeightedContrast(signal, flipangle, TR, B1) = WeightedContrast(signal, flipangle, TR, B1, missing)
 
 """
-    WeightedMultiechoContrast([w(TE₁), w(TE₂), ...], [TE₁, TE₂, ...])
+    WeightedMultiechoContrast([w(TE₁), w(TE₂), ...])
 
 Composite type to store multiecho variable flip angle (VFA) MRI data
 """
@@ -46,11 +43,13 @@ struct WeightedMultiechoContrast
 
     function WeightedMultiechoContrast(contrastList)
         for w in contrastList
-            @assert w.flipangle == contrastList[1].flipangle "All flip angles must match in WeightedMultiechoContrast!"
-            @assert w.TR == contrastList[1].TR "All TRs must match in WeightedMultiechoContrast!"
-            @assert w.TE > 0 "All TEs must be greater than zero in WeightedMultiechoContrast!"
-            @assert size(w.signal) == size(contrastList[1].signal) "The dimensions of the data must match for all contrasts in  in WeightedMultiechoContrast!"
+            @assert w.flipangle == contrastList[1].flipangle "All flip angles must match!"
+            @assert w.TR == contrastList[1].TR "All TRs must match!"
+            @assert w.TE > 0 "All TEs must be greater than zero!"
+            @assert size(w.signal) == size(contrastList[1].signal) "The dimensions of the data must match!"
         end
+        @assert (length(unique([c.TE for c in contrastList])) > 1) "There must be more than one unique TE!"
+        
         new(contrastList)
     end
 end
@@ -166,13 +165,9 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
     for wIdx = 1:nWeighted
         w = weighted_dataList[wIdx]
         nTEs = length(w.contrastList)
-        @assert (nTEs > 1) "each weighting must have more than one TE"
 
         d = zeros(nTEs, nWeighted+1)
-
         d[:,1] = -[c.TE for c in w.contrastList]
-        @assert (length(unique(d[:,1])) > 1) "each weighting must have more than one unique TE"
-        
         d[:,wIdx+1] .= 1
         D = vcat(D, d)
         
@@ -181,7 +176,7 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
         
         rData = zeros(nVoxels, nTEs)
         for t = 1:nTEs
-            rData[:, t] .= w.contrastList[t].signal
+            rData[:, t] .= w.contrastList[t].signal[:]
         end
         
         # log(0) is not defined, so warn the user about zeroes in their data 
