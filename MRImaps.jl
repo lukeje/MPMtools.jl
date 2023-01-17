@@ -155,13 +155,11 @@ Weiskopf et al. Front. Neurosci. (2014), "Estimating the apparent transverse rel
 """
 function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
         
-    dims = size(weighted_dataList[1].echoList[1].signal)
-    nVoxels = prod(dims)
     nWeighted = length(weighted_dataList)
     
     # Build design matrix D and response variable y
     D = zeros(0, nWeighted+1)
-    y = zeros(0, 1)
+    y = Vector{Float64}(undef,0)
     for wIdx = 1:nWeighted
         w = weighted_dataList[wIdx]
         nTEs = length(w.echoList)
@@ -171,39 +169,33 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
         d[:,wIdx+1] .= 1
         D = vcat(D, d)
         
-        localDims = size(w.echoList[1].signal)
-        @assert (prod(localDims) == nVoxels) "all input data must have the same number of voxels"
-        
-        rData = zeros(nVoxels, nTEs)
-        for t = 1:nTEs
-            rData[:, t] .= w.echoList[t].signal
+        for t in w.echoList
+            push!(y, t.signal)
         end
-        
-        # log(0) is not defined, so warn the user about zeroes in their data 
-        # for methods involving a log transform.
-        if any(rData .== 0)
-            @warn """Zero values detected in some voxels in the input data. This will cause estimation to fail in these voxels due to the log 
-                transform. If these voxels are background voxels, consider removing them from the input data matrices. 
-                Zero values which occur only at high TE in voxels of interest could be replaced with a small positive number, e.g. eps()
-                (if the data magnitudes are ≈ 1) or 1 if the data are integer-valued. Note: Care must be taken when replacing 
-                values, as this could bias the R2* estimation."""
-        end
-        
-        y = vcat(y, transpose(rData))
+    end
+
+    # log(0) is not defined, so warn the user about zeroes in their data 
+    # for methods involving a log transform.
+    if any(y .== 0)
+        @warn """Zero values detected in some voxels in the input data. This will cause estimation to fail in these voxels due to the log 
+            transform. If these voxels are background voxels, consider removing them from the input data matrices. 
+            Zero values which occur only at high TE in voxels of interest could be replaced with a small positive number, e.g. eps()
+            (if the data magnitudes are ≈ 1) or 1 if the data are integer-valued. Note: Care must be taken when replacing 
+            values, as this could bias the R2* estimation."""
     end
     
     # Estimate R2*
     β = (transpose(D) * D) \ (transpose(D) * log.(y))
 
-    R2star = reshape(β[1,:],dims)
+    # Output
+    R2star = β[1]
 
     extrapolated = Vector{WeightedContrast}(undef,nWeighted)
     for wIdx = 1:nWeighted
         w = weighted_dataList[wIdx].echoList[1]
-        extrapolated[wIdx] = WeightedContrast(exp.(reshape(β[wIdx+1,:],dims)), w.flipangle, w.TR, w.B1, 0)
+        extrapolated[wIdx] = WeightedContrast(exp.(β[wIdx+1]), w.flipangle, w.TR, w.B1, 0)
     end
     
-    # Output
     return R2star, extrapolated
 end
 
