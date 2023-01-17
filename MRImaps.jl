@@ -39,18 +39,18 @@ WeightedContrast(signal, flipangle, TR, B1) = WeightedContrast(signal, flipangle
 Vector type to store multiecho variable flip angle (VFA) MRI data
 """
 struct WeightedMultiechoContrast
-    
+    echoList::Vector{WeightedContrast}
     # Really just an alias of the vector type; use constructor to check consistency of data
-    function WeightedMultiechoContrast(contrastList::Vector{WeightedContrast})
-        for w in contrastList
-            @assert w.flipangle == contrastList[1].flipangle "All flip angles must match!"
-            @assert w.TR == contrastList[1].TR "All TRs must match!"
+    function WeightedMultiechoContrast(echoList::Vector{WeightedContrast})
+        for w in echoList
+            @assert w.flipangle == echoList[1].flipangle "All flip angles must match!"
+            @assert w.TR == echoList[1].TR "All TRs must match!"
             @assert w.TE > 0 "All TEs must be greater than zero!"
-            @assert size(w.signal) == size(contrastList[1].signal) "The dimensions of the data must match!"
+            @assert size(w.signal) == size(echoList[1].signal) "The dimensions of the data must match!"
         end
-        @assert (length(unique([c.TE for c in contrastList])) > 1) "There must be more than one unique TE!"
+        @assert (length(unique([c.TE for c in echoList])) > 1) "There must be more than one unique TE!"
         
-        return contrastList
+        new(echoList)
     end
 end
 
@@ -155,7 +155,7 @@ Weiskopf et al. Front. Neurosci. (2014), "Estimating the apparent transverse rel
 """
 function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
         
-    dims = size(weighted_dataList[1][1].signal)
+    dims = size(weighted_dataList[1].echoList[1].signal)
     nVoxels = prod(dims)
     nWeighted = length(weighted_dataList)
     
@@ -164,19 +164,19 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
     y = zeros(0, 1)
     for wIdx = 1:nWeighted
         w = weighted_dataList[wIdx]
-        nTEs = length(w)
+        nTEs = length(w.echoList)
 
         d = zeros(nTEs, nWeighted+1)
-        d[:,1] = -[c.TE for c in w]
+        d[:,1] = -[c.TE for c in w.echoList]
         d[:,wIdx+1] .= 1
         D = vcat(D, d)
         
-        localDims = size(w[1].signal)
+        localDims = size(w.echoList[1].signal)
         @assert (prod(localDims) == nVoxels) "all input data must have the same number of voxels"
         
         rData = zeros(nVoxels, nTEs)
         for t = 1:nTEs
-            rData[:, t] = w[t].signal[:]
+            rData[:, t] .= w.echoList[t].signal
         end
         
         # log(0) is not defined, so warn the user about zeroes in their data 
@@ -199,7 +199,7 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
 
     extrapolated = Vector{WeightedContrast}(undef,nWeighted)
     for wIdx = 1:nWeighted
-        w = weighted_dataList[wIdx][1]
+        w = weighted_dataList[wIdx].echoList[1]
         extrapolated[wIdx] = WeightedContrast(exp.(reshape(β[wIdx+1,:],dims)), w.flipangle, w.TR, w.B1, 0)
     end
     
