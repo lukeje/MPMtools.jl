@@ -27,7 +27,7 @@ The steady state signals from the Ernst equation for given flip angle α, TR, an
 α should be in radians, and time units of TR and R₁ should match.
 """
 function ernst(α, TR, R₁)
-    @. sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
+    sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
 end
 
 """
@@ -62,7 +62,7 @@ function optimalVFAangles(TR, R₁, PDorR1::String="R1")
     end
 
     # Equations (21) and (27)
-    return @. 2 * atan(scaling * tan(ernstangle(TR, R₁) / 2))
+    return 2 * atan(scaling * tan(ernstangle(TR, R₁) / 2))
 end
 
 """
@@ -74,7 +74,7 @@ Uses the solution from Dathe and Helms, "Exact algebraization of the signal equa
 Physics in Medicine and Biology (2010) [doi:10.1088/0031-9155/55/15/003](https://dx.doi.org/10.1088/0031-9155/55/15/003) 
 """
 function optimalVFAanglesd(TR, R₁, PDorR1::String="R1")
-    rad2deg.(optimalVFAangles(TR, R₁, PDorR1))
+    rad2deg(optimalVFAangles(TR, R₁, PDorR1))
 end
 
 """
@@ -86,7 +86,7 @@ function inversionRecovery(R₁, TI, η)
 
     @assert (0 < η ≤ 1) "Inversion efficiency η must be between 0 and 1"
     
-    return @. 1 - 2η * exp(-TI * R₁)
+    return 1 - 2η * exp(-TI * R₁)
 end
 
 end
