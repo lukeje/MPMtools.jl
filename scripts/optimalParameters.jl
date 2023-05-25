@@ -1,5 +1,3 @@
-#!/usr/bin/env julia
-
 using ArgParse
 using Optim
 
@@ -27,6 +25,11 @@ function parse_commandline()
             required = false
             arg_type = Float64
             default  = 0.0
+        "--FAmax"
+            help = "maximum flip angle for excitation (°)"
+            required = false
+            arg_type = Float64
+            default  = 270.0
     end
 
     add_arg_group!(s, "whether to optimise for \"PD\", \"R1\", or \"both\"", exclusive=true, required=true)
@@ -47,7 +50,10 @@ function main()
 
     R1     = parsed_args["R1"]
     TRmin  = parsed_args["TRmin"]
+    FAmax  = deg2rad(parsed_args["FAmax"])
     TRsum  = parsed_args["scantime"]/(2*parsed_args["nlines"])
+    
+    @assert (TRsum > TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
     # dPD and dR1 have same argument list, so define them here rather than repeating them below
     dargs(x) = ( MPM.ernst(x[1], x[2], R1), MPM.ernst(x[3], TRsum-x[2], R1), 1.0, 1.0, x[1], x[3], x[2], TRsum-x[2] )
@@ -66,8 +72,9 @@ function main()
 
     # start from optimum for equal TRs
     angles = MPM.optimalVFAangles(TRsum/2, R1, initialoptimum)
+    angles = min.(angles,FAmax-0.01)
 
-    opt = optimize(fitfun, [0, 0, 0], [3π/2, TRsum, 3π/2], [angles[1], TRsum/2, angles[2]])
+    opt = optimize(fitfun, [0, TRmin, 0], [FAmax, TRsum-TRmin, FAmax], [angles[1], TRsum/2, angles[2]])
     xopt = opt.minimizer
 
     # precision in output
@@ -77,8 +84,6 @@ function main()
     println("TR1: $(rounddigit(1e3*xopt[2])) ms")
     println("α2:  $(rounddigit(rad2deg(xopt[3])))°")
     println("TR2: $(rounddigit(1e3*(TRsum - xopt[2]))) ms")
-
-    @assert all([xopt[2], (TRsum - xopt[2])] .≥ TRmin) "One or both TRs were less than TRmin. Please relax your input parameters and try again."
 
 end
 
