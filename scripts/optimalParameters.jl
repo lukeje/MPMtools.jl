@@ -51,12 +51,14 @@ function main()
     R1     = parsed_args["R1"]
     TRmin  = parsed_args["TRmin"]
     FAmax  = deg2rad(parsed_args["FAmax"])
-    TRsum  = parsed_args["scantime"]/(2*parsed_args["nlines"])
+    TRsum  = parsed_args["scantime"]/parsed_args["nlines"]
     
     @assert (TRsum > TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
+    constrainedTR2(TR1, s) = (TRsum - TR1 - TRmin)*s + TRmin # ensure TR2 ∈ [TRmin, TRsum - TRmin] given fit parameters s ∈ [0,1] and TR1 ∈ [TRmin, TRsum - TRmin]
+
     # dPD and dR1 have same argument list, so define them here rather than repeating them below
-    dargs(x) = ( MPM.ernst(x[1], x[2], R1), MPM.ernst(x[3], TRsum-x[2], R1), 1.0, 1.0, x[1], x[3], x[2], TRsum-x[2] )
+    dargs(x) = ( MPM.ernst(x[1], x[2], R1), MPM.ernst(x[3], constrainedTR2(x[2], x[4]), R1), 1.0, 1.0, x[1], x[3], x[2], constrainedTR2(x[2], x[4]) )
 
     # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
     if parsed_args["onlyPD"]
@@ -72,9 +74,9 @@ function main()
 
     # start from optimum for equal TRs
     angles = MPM.optimalVFAangles(TRsum/2, R1, initialoptimum)
-    angles = min.(angles,FAmax-0.01)
+    angles = min.(angles, FAmax-0.01) # ensure angles within bounds
 
-    opt = optimize(fitfun, [0, TRmin, 0], [FAmax, TRsum-TRmin, FAmax], [angles[1], TRsum/2, angles[2]])
+    opt = optimize(fitfun, [0.0, TRmin, 0.0, 0.0], [FAmax, TRsum-TRmin, FAmax, 1.0], [angles[1], TRsum/2, angles[2], 1.0 - 0.01])
     xopt = opt.minimizer
 
     # precision in output
@@ -83,7 +85,7 @@ function main()
     println("α1:  $(rounddigit(rad2deg(xopt[1])))°")
     println("TR1: $(rounddigit(1e3*xopt[2])) ms")
     println("α2:  $(rounddigit(rad2deg(xopt[3])))°")
-    println("TR2: $(rounddigit(1e3*(TRsum - xopt[2]))) ms")
+    println("TR2: $(rounddigit(1e3*(constrainedTR2(xopt[2], xopt[4])))) ms")
 
 end
 
