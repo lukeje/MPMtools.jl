@@ -1,0 +1,9 @@
+name = "MPMtools"
+uuid = "445adf52-3e29-4ddf-a56c-a655739d99f0"
+authors = ["Luke Edwards <ledwards@cbs.mpg.de>"]
+version = "0.1.0"
+
+[deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"

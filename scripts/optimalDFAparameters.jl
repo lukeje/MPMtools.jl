@@ -1,8 +1,9 @@
 using ArgParse
 using Optim
+using Pkg
 
-include(joinpath(@__DIR__, "../src/MRIutils.jl"))
-using .MRIutils: ernst, dPD, dR1, optimalDFAangles
+Pkg.activate(joinpath(@__DIR__, ".."))
+using MPMtools.MRIutils: ernst, dPD, dR1, optimalDFAangles
 
 function parse_commandline()
     s = ArgParseSettings("Calculate optimal flip angles (α1 and α1) and repetition times (TR1 and TR2) for dual flip angle R1 and PD measurements.")
