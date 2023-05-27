@@ -70,16 +70,16 @@ Used to transform Ernst equation into analytically-soluble form.
 half_angle_tan(α) = 2tan(0.5α)
 
 """
-    optimalVFAangles(TR, R₁[, PDorR1=("PD" | "R1")])
+    optimalDFAangles(TR, R₁[, PDorR1=("PD" | "R1")])
 
-Optimal flip angles for estimating PD or R₁ from dual flip angle VFA in radians.
+Optimal flip angles for estimating PD or R₁ from dual flip angle R1 mapping in radians.
 
 # Reference
 - Dathe and Helms, Phys. Med. Biol. (2010), "Exact algebraization of 
     the signal equation of spoiled gradient echo MRI".
     https://doi.org/10.1088/0031-9155/55/15/003 
 """
-function optimalVFAangles(TR::Number, R₁::Number, PDorR1::String="R1")
+function optimalDFAangles(TR::Number, R₁::Number, PDorR1::String="R1")
 
     if PDorR1 == "PD"
         # Equation (27)
@@ -98,17 +98,17 @@ function optimalVFAangles(TR::Number, R₁::Number, PDorR1::String="R1")
 end
 
 """
-    optimalVFAanglesd(TR, R₁[, PDorR1=("PD" | "R1")])
+    optimalDFAanglesd(TR, R₁[, PDorR1=("PD" | "R1")])
 
-Optimal flip angles for estimating R₁ from VFA in degrees.
+Optimal flip angles for estimating R₁ from dual flip angle R1 mapping in degrees.
 
 # Reference
 - Dathe and Helms, Phys. Med. Biol. (2010), "Exact algebraization of 
     the signal equation of spoiled gradient echo MRI".
     https://doi.org/10.1088/0031-9155/55/15/003 
 """
-function optimalVFAanglesd(TR, R₁, PDorR1::String="R1") 
-    map(rad2deg, optimalVFAangles(TR, R₁, PDorR1))
+function optimalDFAanglesd(TR, R₁, PDorR1::String="R1") 
+    map(rad2deg, optimalDFAangles(TR, R₁, PDorR1))
 end
 
 """

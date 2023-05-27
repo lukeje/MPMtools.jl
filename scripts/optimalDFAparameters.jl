@@ -1,8 +1,8 @@
 using ArgParse
 using Optim
 
-include(string(@__DIR__,"/../src/MRIutils.jl"))
-import .MRIutils as MPM
+include(joinpath(@__DIR__, "../src/MRIutils.jl"))
+using .MRIutils: ernst, dPD, dR1, optimalDFAangles
 
 function parse_commandline()
     s = ArgParseSettings("Calculate optimal flip angles (α1 and α1) and repetition times (TR1 and TR2) for dual flip angle R1 and PD measurements.")
@@ -59,25 +59,27 @@ function main()
     constrainedTR2(TR1, s) = (TRsum - TR1 - TRmin)*s + TRmin
 
     # dPD and dR1 have same argument list, so define them here rather than repeating them below
-    dargs(x) = ( MPM.ernst(x[1], x[2], R1), MPM.ernst(x[3], constrainedTR2(x[2], x[4]), R1), 1.0, 1.0, x[1], x[3], x[2], constrainedTR2(x[2], x[4]) )
+    dargs(x) = ( ernst(x[1], x[2], R1), ernst(x[3], constrainedTR2(x[2], x[4]), R1), 1.0, 1.0, x[1], x[3], x[2], constrainedTR2(x[2], x[4]) )
 
     # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
     if parsed_args["onlyPD"]
-        fitfun = x -> MPM.dPD(dargs(x)...)
+        fitfun = x -> dPD(dargs(x)...)
         initialoptimum = "PD"
     elseif parsed_args["onlyR1"]
-        fitfun = x -> MPM.dR1(dargs(x)...)
+        fitfun = x -> dR1(dargs(x)...)
         initialoptimum = "R1"
     elseif parsed_args["both"]
-        fitfun = x -> MPM.dPD(dargs(x)...) + MPM.dR1(dargs(x)...)/R1
+        fitfun = x -> dPD(dargs(x)...) + dR1(dargs(x)...)/R1
         initialoptimum = "PD"
     end
 
     # start from optimum for equal TRs
-    angles = MPM.optimalVFAangles(TRsum/2, R1, initialoptimum)
-    angles = min.(angles, FAmax-0.01) # ensure angles within bounds
+    # -0.01 so that optimiser does not start on edge of allowed range
+    angles = optimalDFAangles(TRsum/2, R1, initialoptimum)
+    angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
+    x0 = [angles[1], TRsum/2, angles[2], 1.0 - 0.01]
 
-    opt = optimize(fitfun, [0.0, TRmin, 0.0, 0.0], [FAmax, TRsum-TRmin, FAmax, 1.0], [angles[1], TRsum/2, angles[2], 1.0 - 0.01])
+    opt = optimize(fitfun, [0.0, TRmin, 0.0, 0.0], [FAmax, TRsum-TRmin, FAmax, 1.0], x0)
     xopt = opt.minimizer
 
     # precision in output
