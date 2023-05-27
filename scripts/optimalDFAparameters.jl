@@ -1,8 +1,7 @@
+using Pkg
+Pkg.activate(dirname(@__DIR__))
 using ArgParse
 using Optim
-using Pkg
-
-Pkg.activate(joinpath(@__DIR__, ".."))
 using MPMtools.MRIutils: ernst, dPD, dR1, optimalDFAangles
 
 function parse_commandline()
