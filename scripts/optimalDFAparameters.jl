@@ -8,6 +8,22 @@ using MPMtools.MRIutils: ernst, dPD, dR1, optimalDFAangles
 function parse_commandline()
     s = ArgParseSettings("Calculate optimal flip angles (α1 and α1) and repetition times (TR1 and TR2) for dual flip angle R1 and PD measurements.")
 
+    s.epilog = """
+               examples: \n
+               1. Given a matrix size of 100×100, a maximum scan time of 12 minutes, and a typical R1 of 1.25 / s,
+               the optimal TR and flip angle pair can be computed using:\n
+               \ua0\ua0julia $(s.prog) \$((100*100)) \$((12*60)) 1.25 --onlyR1\n
+               \n\n
+               2. If we know the minimum and maximum TR values rather than having a maximum scan time, 
+               then we can specify a minimum TR (here 18.7 ms), 
+               the sum of the TR values as the scan time (here 18.7 ms + 23.7 ms),
+               and set the number of lines to 1. 
+               Here we also specify a maximum flip angle of 20°:\n
+               \ua0\ua0julia $(s.prog) 1 0.0424 1.25 \\\n
+               \ua0\ua0\ua0\ua0--TRmin 0.0187 --onlyR1 --FAmax 20\n
+               This case reproduces the result from Weiskopf, et al. (2013, https://doi.org/10.3389/fnins.2013.00095).
+               """
+
     @add_arg_table! s begin
         "nlines"
             help = "number of acquired lines"
