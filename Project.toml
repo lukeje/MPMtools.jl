@@ -1,6 +1,6 @@
 name = "MPMtools"
 uuid = "445adf52-3e29-4ddf-a56c-a655739d99f0"
-authors = ["Luke Edwards <ledwards@cbs.mpg.de>"]
+authors = ["Luke Edwards <@lukeje>"]
 version = "0.1.0"
 
 [deps]
