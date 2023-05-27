@@ -1,7 +1,7 @@
 using ArgParse
 using Optim
 
-include("./MPMtools.jl/MRIutils.jl")
+include(string(@__DIR__,"/../src/MRIutils.jl"))
 import .MRIutils as MPM
 
 function parse_commandline()
@@ -55,7 +55,8 @@ function main()
     
     @assert (TRsum > TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
-    constrainedTR2(TR1, s) = (TRsum - TR1 - TRmin)*s + TRmin # ensure TR2 ∈ [TRmin, TRsum - TRmin] given fit parameters s ∈ [0,1] and TR1 ∈ [TRmin, TRsum - TRmin]
+    # computes allowed TR2 ∈ [TRmin, TRsum - TRmin] given fit parameters s ∈ [0,1] and TR1 ∈ [TRmin, TRsum - TRmin]
+    constrainedTR2(TR1, s) = (TRsum - TR1 - TRmin)*s + TRmin
 
     # dPD and dR1 have same argument list, so define them here rather than repeating them below
     dargs(x) = ( MPM.ernst(x[1], x[2], R1), MPM.ernst(x[3], constrainedTR2(x[2], x[4]), R1), 1.0, 1.0, x[1], x[3], x[2], constrainedTR2(x[2], x[4]) )
