@@ -120,12 +120,15 @@ In:
 - ST1:  T1w signal at TE=0
 - dSPD: residual of mono-exponential fit of PDw signal
 - dST1: residual of mono-exponential fit of T1w signal
-- α_PD: flip angle of PDw signal
-- α_T1: flip angle of T1w signal
+- α_PD: flip angle of PDw signal in radians
+- α_T1: flip angle of T1w signal in radians
 - TRPD: repetition time of PDw signal
 - TRT1: repetition time of T1w signal
 
 Out: error for R1 in reciprocal units of TR units
+
+    dR1(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+Calculate propagation of uncertainty for R1 map using synthetic signal values for given R₁.
 
 # References
 - https://en.wikipedia.org/wiki/Propagation_of_uncertainty
@@ -155,6 +158,8 @@ function dR1(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
     
 end
 
+dR1(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dR1(ernst(α_PD,TRPD,R₁),ernst(α_T1,TRT1,R₁),dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+
 """
     dPD(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
 Calculate propagation of uncertainty for PD map.
@@ -164,12 +169,15 @@ In:
 - ST1:  T1w signal at TE=0
 - dSPD: residual of mono-exponential fit of PDw signal
 - dST1: residual of mono-exponential fit of T1w signal
-- α_PD: flip angle of PDw signal
-- α_T1: flip angle of T1w signal
+- α_PD: flip angle of PDw signal in radians
+- α_T1: flip angle of T1w signal in radians
 - TRPD: repetition time of PDw signal
 - TRT1: repetition time of T1w signal
 
 Out: error for A in arbitrary units (a.u.)
+
+    dPD(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+Calculate propagation of uncertainty for PD map using synthetic signal values for given R₁.
  
 # References
 - https://en.wikipedia.org/wiki/Propagation_of_uncertainty
@@ -198,6 +206,8 @@ function dPD(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
           dPD_by_dS1(ST1,SPD,τ_T1,τ_PD,TRT1,TRPD)^2*dST1^2 )
 
 end
+
+dPD(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dPD(ernst(α_PD,TRPD,R₁),ernst(α_T1,TRT1,R₁),dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
 
 """
     inversionRecovery(R₁, TI, η)

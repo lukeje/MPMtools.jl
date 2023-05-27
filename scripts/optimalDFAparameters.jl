@@ -59,7 +59,7 @@ function main()
     constrainedTR2(TR1, s) = (TRsum - TR1 - TRmin)*s + TRmin
 
     # dPD and dR1 have same argument list, so define them here rather than repeating them below
-    dargs(x) = ( ernst(x[1], x[2], R1), ernst(x[3], constrainedTR2(x[2], x[4]), R1), 1.0, 1.0, x[1], x[3], x[2], constrainedTR2(x[2], x[4]) )
+    dargs(x) = ( R1, 1.0, 1.0, x[1], x[2], x[3], constrainedTR2(x[3], x[4]) )
 
     # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
     if parsed_args["onlyPD"]
@@ -77,18 +77,18 @@ function main()
     # -0.01 so that optimiser does not start on edge of allowed range
     angles = optimalDFAangles(TRsum/2, R1, initialoptimum)
     angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
-    x0 = [angles[1], TRsum/2, angles[2], 1.0 - 0.01]
+    x0 = [angles[1], angles[2], TRsum/2, 1.0 - 0.01]
 
-    opt = optimize(fitfun, [0.0, TRmin, 0.0, 0.0], [FAmax, TRsum-TRmin, FAmax, 1.0], x0)
+    opt = optimize(fitfun, [0.0, 0.0, TRmin, 0.0], [FAmax, FAmax, TRsum-TRmin, 1.0], x0)
     xopt = opt.minimizer
 
     # precision in output
     rounddigit(x) = round(x; digits=2)
 
     println("α1:  $(rounddigit(rad2deg(xopt[1])))°")
-    println("TR1: $(rounddigit(1e3*xopt[2])) ms")
-    println("α2:  $(rounddigit(rad2deg(xopt[3])))°")
-    println("TR2: $(rounddigit(1e3*(constrainedTR2(xopt[2], xopt[4])))) ms")
+    println("TR1: $(rounddigit(1e3*xopt[3])) ms")
+    println("α2:  $(rounddigit(rad2deg(xopt[2])))°")
+    println("TR2: $(rounddigit(1e3*(constrainedTR2(xopt[3], xopt[4])))) ms")
 
 end
 
