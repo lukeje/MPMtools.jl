@@ -1,8 +1,6 @@
 module MPMtools
 
-include("./MRIutils.jl")
-using .MRIutils
-include("./MRImaps.jl")
-using .MRImaps
+include("MRIutils.jl")
+include("MRImaps.jl")
 
 end # module MPMtools
