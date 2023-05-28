@@ -1,8 +1,7 @@
 using Pkg
 Pkg.activate(dirname(@__DIR__))
 using ArgParse
-using Optim
-using MPMtools.MRIutils: ernst, dPD, dR1, optimalDFAangles
+using MPMtools.MRIutils: optimalDFAparameters
 
 function parse_commandline()
     s = ArgParseSettings("Calculate optimal flip angles (α1 and α1) and repetition times (TR1 and TR2) for dual flip angle R1 and PD measurements.")
@@ -68,35 +67,18 @@ function main()
     TRmin  = parsed_args["TRmin"]
     FAmax  = deg2rad(parsed_args["FAmax"])
     TRsum  = parsed_args["scantime"]/parsed_args["nlines"]
-    
-    @assert (TRsum > TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
-    # computes allowed TR2 ∈ [TRmin, TRsum - TRmin] given fit parameters s ∈ [0,1] and TR1 ∈ [TRmin, TRsum - TRmin]
-    constrainedTR2(TR1, s) = (TRsum - TR1 - TRmin)*s + TRmin
-
-    # dPD and dR1 have same argument list, so define them here rather than repeating them below
-    dargs(x) = ( R1, 1.0, 1.0, x[1], x[2], x[3], constrainedTR2(x[3], x[4]) )
-
-    # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
     if parsed_args["onlyPD"]
-        fitfun = x -> dPD(dargs(x)...)
-        initialoptimum = "PD"
+        PDorR1="PD"
     elseif parsed_args["onlyR1"]
-        fitfun = x -> dR1(dargs(x)...)
-        initialoptimum = "R1"
+        PDorR1="R1"
     elseif parsed_args["both"]
-        fitfun = x -> dPD(dargs(x)...) + dR1(dargs(x)...)/R1
-        initialoptimum = "PD"
+        PDorR1="both"
     end
+    
+    @assert (TRsum > 2TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
-    # start from optimum for equal TRs
-    # -0.01 so that optimiser does not start on edge of allowed range
-    angles = optimalDFAangles(TRsum/2, R1, initialoptimum)
-    angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
-    x0 = [angles[1], angles[2], TRsum/2, 1.0 - 0.01]
-
-    opt = optimize(fitfun, [0.0, 0.0, TRmin, 0.0], [FAmax, FAmax, TRsum-TRmin, 1.0], x0)
-    xopt = opt.minimizer
+    xopt = optimalDFAparameters(TRsum, R1, PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
 
     # precision in output
     rounddigit(x) = round(x; digits=2)
@@ -104,7 +86,7 @@ function main()
     println("α1:  $(rounddigit(rad2deg(xopt[1])))°")
     println("TR1: $(rounddigit(1e3*xopt[3])) ms")
     println("α2:  $(rounddigit(rad2deg(xopt[2])))°")
-    println("TR2: $(rounddigit(1e3*(constrainedTR2(xopt[3], xopt[4])))) ms")
+    println("TR2: $(rounddigit(1e3*xopt[4])) ms")
 
 end
 
