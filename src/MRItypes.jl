@@ -3,7 +3,7 @@ module MRItypes
 export WeightedContrast, WeightedMultiechoContrast
 
 """
-    WeightedContrast(signal, flipangle, TR, B1[, TE])
+    WeightedContrast(signal, flipangle, TR[, TE])
 
 Composite type to store variable flip angle (VFA) MRI data
 """
@@ -11,27 +11,26 @@ struct WeightedContrast
     signal
     flipangle::Number
     TR::Number
-    B1
     TE::Union{Number,Missing}
     τ
 
     # define explicit inner constructor as τ is computed from the input
     # and we need to check some parameter bounds
-    function WeightedContrast(signal, flipangle, TR, B1, TE)
+    function WeightedContrast(signal, flipangle, TR, TE)
 
         @assert (TR > 0) "TR must be greater than zero!"
-        @assert all((B1 .> 0) .| ismissing(B1)) "B1 must be greater than zero or missing!"
         @assert (TE ≥ 0) | ismissing(TE) "TE must be greater than or equal to zero or missing!"
 
-        # populate τ field (half angle tangent transform) using provided B1 and flipangle
-        τ = 2tan(B1 * flipangle / 2)
+        # populate τ field (half angle tangent transform) using provided flipangle
+        τ = 2tan(flipangle / 2)
 
-        new(signal, flipangle, TR, B1, TE, τ)
+        new(signal, flipangle, TR, TE, τ)
     end
 end
 
 # outer constructor: TE is missing if not provided
-WeightedContrast(signal, flipangle, TR, B1) = WeightedContrast(signal, flipangle, TR, B1, missing)
+WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR, missing)
+
 
 """
     WeightedMultiechoContrast([w(TE₁), w(TE₂), ...])
@@ -53,5 +52,6 @@ struct WeightedMultiechoContrast
         new(echoList)
     end
 end
+
 
 end

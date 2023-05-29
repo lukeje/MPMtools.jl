@@ -16,16 +16,14 @@ A (in arbitrary units)
 
 # Examples
 ```juliarepl
-PDw = WeightedContrast(signal_pdw, fa_pdw, tr_pdw, b1map)
-T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w, b1map)
+PDw = WeightedContrast(signal_pdw, fa_pdw, tr_pdw)
+T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w)
 A = calculateA(PDw, T1w)
 ```
 
 # References
-Helms et al. Magn. Reson. Med. (2008), "Quantitative FLASH MRI at 3T using a rational approximation of the Ernst equation", [doi:10.1002/mrm.21542](https://doi.org/10.1002/mrm.21542)
-
-Edwards et al.  Magn. Reson. Mater. Phy. (2021), "Rational approximation of the Ernst equation for dual angle R1 mapping revisited: beyond the small flip-angle assumption" 
-in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.org/10.1007/s10334-021-00947-8)
+- Helms et al. Magn. Reson. Med. (2008), "Quantitative FLASH MRI at 3T using a rational approximation of the Ernst equation", [doi:10.1002/mrm.21542](https://doi.org/10.1002/mrm.21542)
+- Edwards et al.  Magn. Reson. Mater. Phy. (2021), "Rational approximation of the Ernst equation for dual angle R1 mapping revisited: beyond the small flip-angle assumption" in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.org/10.1007/s10334-021-00947-8)
 """
 function calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
     
@@ -38,6 +36,7 @@ function calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
         return missing
     end
 end
+
 
 """
     calculateR1(PDw::WeightedContrast, T1w::WeightedContrast)
@@ -52,16 +51,14 @@ R1 (in reciprocal of TR units)
 
 # Examples
 ```juliarepl
-PDw = WeightedContrast(signal_pdw, fa_pdw, tr_pdw, b1map)
-T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w, b1map)
+PDw = WeightedContrast(signal_pdw, fa_pdw, tr_pdw)
+T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w)
 R1 = calculateR1(PDw, T1w)
 ```
 
 # References
-Helms et al. Magn. Reson. Med. (2008), "Quantitative FLASH MRI at 3T using a rational approximation of the Ernst equation", [doi:10.1002/mrm.21542](https://doi.org/10.1002/mrm.21542)
-
-Edwards et al.  Magn. Reson. Mater. Phy. (2021), "Rational approximation of the Ernst equation for dual angle R1 mapping revisited: beyond the small flip-angle assumption" 
-in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.org/10.1007/s10334-021-00947-8)
+- Helms et al. Magn. Reson. Med. (2008), "Quantitative FLASH MRI at 3T using a rational approximation of the Ernst equation", [doi:10.1002/mrm.21542](https://doi.org/10.1002/mrm.21542)
+- Edwards et al.  Magn. Reson. Mater. Phy. (2021), "Rational approximation of the Ernst equation for dual angle R1 mapping revisited: beyond the small flip-angle assumption" in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.org/10.1007/s10334-021-00947-8)
 """
 function calculateR1(PDw::WeightedContrast, T1w::WeightedContrast)
 
@@ -74,6 +71,7 @@ function calculateR1(PDw::WeightedContrast, T1w::WeightedContrast)
         return missing
     end
 end
+
 
 """
     calculateR2star(weighted_data)
@@ -99,8 +97,7 @@ TBD
 ```
 
 # References:
-Weiskopf et al. Front. Neurosci. (2014), "Estimating the apparent transverse relaxation time (R2*) from images with different contrasts
-(ESTATICS) reduces motion artifacts", [doi:10.3389/fnins.2014.00278](https://doi.org/10.3389/fnins.2014.00278)
+- Weiskopf et al. Front. Neurosci. (2014), "Estimating the apparent transverse relaxation time (R2*) from images with different contrasts (ESTATICS) reduces motion artifacts", [doi:10.3389/fnins.2014.00278](https://doi.org/10.3389/fnins.2014.00278)
 """
 function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
         
@@ -142,10 +139,11 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
     extrapolated = Vector{WeightedContrast}(undef,nWeighted)
     for wIdx = 1:nWeighted
         w = weighted_dataList[wIdx].echoList[1]
-        extrapolated[wIdx] = WeightedContrast(exp.(β[wIdx+1]), w.flipangle, w.TR, w.B1, 0)
+        extrapolated[wIdx] = WeightedContrast(exp.(β[wIdx+1]), w.flipangle, w.TR, zero(w.TE))
     end
     
     return R2star, extrapolated
 end
+
 
 end
