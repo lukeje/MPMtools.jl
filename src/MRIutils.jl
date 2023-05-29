@@ -1,6 +1,7 @@
 module MRIutils
 
 using Optim
+using ..MRItypes
 
 """
     ernstangle(TR, R₁)
@@ -37,7 +38,8 @@ Steady state signal using T₁ instead of R₁
 α should be in radians, and time units of TR and T₁ should match.
 """
 function ernst(α::Number, TR::Number, R₁::Number)
-    sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
+    signal = sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
+    return WeightedContrast(signal, α, TR)
 end
 
 ernst(α, TR; T1::Number) = ernst(α, TR, one(T1)/T1)
@@ -74,23 +76,29 @@ half_angle_tan(α) = 2tan(0.5α)
 
 
 """
-    dR1(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+    dR1(SPD,ST1,dSPD,dST1)
 Calculate propagation of uncertainty for R1 map.
 
 In:
-- SPD:  PDw signal at TE=0
-- ST1:  T1w signal at TE=0
+- SPD:  PDw WeightedContrast at TE=0
+- ST1:  T1w WeightedContrast at TE=0
 - dSPD: residual of mono-exponential fit of PDw signal
 - dST1: residual of mono-exponential fit of T1w signal
+
+Out: error for R1 in reciprocal units of TR units
+
+    dR1(R₁,PD,dSPD,dST1)
+Calculate propagation of uncertainty for R1 map using synthetic signal values for given R₁.
+
+In:
 - α_PD: flip angle of PDw signal in radians
 - α_T1: flip angle of T1w signal in radians
 - TRPD: repetition time of PDw signal
 - TRT1: repetition time of T1w signal
+- dSPD: variance of PDw signal
+- dST1: variance of T1w signal
 
 Out: error for R1 in reciprocal units of TR units
-
-    dR1(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
-Calculate propagation of uncertainty for R1 map using synthetic signal values for given R₁.
 
 # References
 - https://en.wikipedia.org/wiki/Propagation_of_uncertainty
@@ -99,10 +107,7 @@ Calculate propagation of uncertainty for R1 map using synthetic signal values fo
     group level sensitivity"
     https://doi.org/10.1016/j.neuroimage.2022.119529
 """
-function dR1(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
-    
-    τ_PD = half_angle_tan(α_PD)
-    τ_T1 = half_angle_tan(α_T1)
+function dR1(SPD::WeightedContrast,ST1::WeightedContrast,dSPD::Number,dST1::Number)
 
     """
     Derivative of dual flip-angle R1 estimate with respect to first weighted 
@@ -111,20 +116,19 @@ function dR1(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
     labels.
     """
     dR1_by_dS1(S1, S2, α1, α2, TR1, TR2) =
-        (S1*α1/(2*TR1) - S2*α2/(2*TR2)) / (α1*(S1/α1 - S2/α2)^2) - 
-        α1/(2*TR1*(S1/α1 - S2/α2))
+        (S1*α1/(2*TR1) - S2*α2/(2*TR2)) / (α1*(S1/α1 - S2/α2)^2) - α1/(2*TR1*(S1/α1 - S2/α2))
 
     # dR1 calculation is symmetric with respect to the two weighted contrasts
-    sqrt( dR1_by_dS1(SPD,ST1,τ_PD,τ_T1,TRPD,TRT1)^2*dSPD^2 + 
-          dR1_by_dS1(ST1,SPD,τ_T1,τ_PD,TRT1,TRPD)^2*dST1^2 )
+    sqrt( dR1_by_dS1(SPD.signal,ST1.signal,SPD.τ,ST1.τ,SPD.TR,ST1.TR)^2*dSPD^2 + 
+          dR1_by_dS1(ST1.signal,SPD.signal,ST1.τ,SPD.τ,ST1.TR,SPD.TR)^2*dST1^2 )
     
 end
 
-dR1(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dR1(ernst(α_PD,TRPD,R₁),ernst(α_T1,TRT1,R₁),dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+dR1(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dR1(ernst(α_PD,TRPD,R₁),ernst(α_T1,TRT1,R₁),dSPD,dST1)
 
 
 """
-    dPD(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+    dPD(SPD,ST1,dSPD,dST1)
 Calculate propagation of uncertainty for PD map.
 
 In:
@@ -132,15 +136,21 @@ In:
 - ST1:  T1w signal at TE=0
 - dSPD: residual of mono-exponential fit of PDw signal
 - dST1: residual of mono-exponential fit of T1w signal
+
+Out: error for A in arbitrary units (a.u.)
+
+    dPD(R₁,dSPD,dST1)
+Calculate propagation of uncertainty for PD map using synthetic signal values for given R₁.
+
+In:
 - α_PD: flip angle of PDw signal in radians
 - α_T1: flip angle of T1w signal in radians
 - TRPD: repetition time of PDw signal
 - TRT1: repetition time of T1w signal
+- dSPD: variance of PDw signal
+- dST1: variance of T1w signal
 
 Out: error for A in arbitrary units (a.u.)
-
-    dPD(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
-Calculate propagation of uncertainty for PD map using synthetic signal values for given R₁.
  
 # References
 - https://en.wikipedia.org/wiki/Propagation_of_uncertainty
@@ -149,10 +159,7 @@ Calculate propagation of uncertainty for PD map using synthetic signal values fo
     group level sensitivity." 
     https://doi.org/10.1016/j.neuroimage.2022.119529
 """
-function dPD(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
-
-    τ_PD = half_angle_tan(α_PD)
-    τ_T1 = half_angle_tan(α_T1)
+function dPD(SPD,ST1,dSPD,dST1)
 
     """
     Derivative of dual flip-angle A (PD) estimate with respect to first 
@@ -161,12 +168,11 @@ function dPD(SPD,ST1,dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
     permuting labels.
     """
     dPD_by_dS1(S1,S2,α1,α2,TR1,TR2) =
-        S1*S2*TR2*α1*(TR1*α2/α1 - TR2*α1/α2) / (S1*TR2*α1 - S2*TR1*α2)^2 -
-            S2*(TR1*α2/α1 - TR2*α1/α2)/(S1*TR2*α1 - S2*TR1*α2)
+        S1*S2*TR2*α1*(TR1*α2/α1 - TR2*α1/α2) / (S1*TR2*α1 - S2*TR1*α2)^2 - S2*(TR1*α2/α1 - TR2*α1/α2)/(S1*TR2*α1 - S2*TR1*α2)
 
     # dPD calculation is symmetric with respect to the two weighted contrasts
-    sqrt( dPD_by_dS1(SPD,ST1,τ_PD,τ_T1,TRPD,TRT1)^2*dSPD^2 +
-          dPD_by_dS1(ST1,SPD,τ_T1,τ_PD,TRT1,TRPD)^2*dST1^2 )
+    sqrt( dPD_by_dS1(SPD.signal,ST1.signal,SPD.τ,ST1.τ,SPD.TR,ST1.TR)^2*dSPD^2 + 
+          dPD_by_dS1(ST1.signal,SPD.signal,ST1.τ,SPD.τ,ST1.TR,SPD.TR)^2*dST1^2 )
 
 end
 
@@ -283,5 +289,6 @@ function inversionRecovery(R₁::Number, TI::Number, η::Number)
 end
 
 inversionRecovery(R₁, TI) = inversionRecovery(R₁, TI, 1)
+
 
 end
