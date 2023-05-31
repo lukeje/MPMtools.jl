@@ -159,7 +159,7 @@ Out: error for A in arbitrary units (a.u.)
     group level sensitivity." 
     https://doi.org/10.1016/j.neuroimage.2022.119529
 """
-function dPD(SPD,ST1,dSPD,dST1)
+function dPD(SPD::WeightedContrast,ST1::WeightedContrast,dSPD::Number,dST1::Number)
 
     """
     Derivative of dual flip-angle A (PD) estimate with respect to first 
