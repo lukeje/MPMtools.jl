@@ -176,7 +176,7 @@ function dPD(SPD::WeightedContrast,ST1::WeightedContrast,dSPD::Number,dST1::Numb
 
 end
 
-dPD(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dPD(ernst(α_PD,TRPD,R₁),ernst(α_T1,TRT1,R₁),dSPD,dST1,α_PD,α_T1,TRPD,TRT1)
+dPD(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dPD(ernst(α_PD,TRPD,R₁),ernst(α_T1,TRT1,R₁),dSPD,dST1)
 
 
 """
@@ -252,7 +252,7 @@ function optimalDFAparameters(TRsum, R₁; PDorR1::String="R1", TRmin=0.0, FAmax
         fitfun = x -> dR1(dargs(x)...)
         initialoptimum = "R1"
     elseif PDorR1=="both"
-        fitfun = x -> dPD(dargs(x)...) + dR1(dargs(x)...)/R1
+        fitfun = x -> dPD(dargs(x)...) + dR1(dargs(x)...)/R₁
         initialoptimum = "PD"
     else
         error("PDorR1 must be either \"PD\", \"R1\", or \"both\". Was $(PDorR1).")
