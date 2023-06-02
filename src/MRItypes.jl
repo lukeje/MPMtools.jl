@@ -38,19 +38,33 @@ WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR
 Vector type to store multiecho variable flip angle (VFA) MRI data
 """
 struct WeightedMultiechoContrast
-    echoList::Vector{WeightedContrast}
-    # Really just an alias of the vector type; use constructor to check consistency of data
+    signal::Vector{Number}
+    flipangle::Number
+    TR::Number
+    TE::Vector{Number}
+    τ
+
+    # use constructor to check consistency of data
     function WeightedMultiechoContrast(echoList::Vector{WeightedContrast})
-        for w in echoList
-            @assert w.flipangle == echoList[1].flipangle "All flip angles must match!"
-            @assert w.TR == echoList[1].TR "All TRs must match!"
-            @assert w.TE > 0 "All TEs must be greater than zero!"
-            @assert size(w.signal) == size(echoList[1].signal) "The dimensions of the data must match!"
-        end
-        @assert (length(unique([c.TE for c in echoList])) > 1) "There must be more than one unique TE!"
+        @assert length(echoList) > 1 "WeightedMultiechoContrast requires more than one element!"
         
-        new(echoList)
+        signal = [w.signal for w in echoList]
+        flipangle = echoList[1].flipangle
+        TR = echoList[1].TR
+        TE = [w.TE for w in echoList]
+        τ = echoList[1].τ
+
+        for w in echoList
+            @assert w.flipangle == flipangle "All flip angles must match!"
+            @assert w.TR == TR "All TRs must match!"
+            @assert w.TE > 0 "All TEs must be greater than zero!"
+        end
+
+        @assert (length(unique(TE)) > 1) "There must be more than one unique TE!"
+
+        new(signal,flipangle,TR,TE,τ)
     end
+    
 end
 
 
