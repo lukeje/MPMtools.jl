@@ -8,16 +8,16 @@ R1     = 1.0
 R2star = 30.0
 B1     = 1.0
 
-TR = 10e-3
-TE = (2:5:40) .* 1e-3
-faPDw = B1*6
-faT1w = B1*18
+TR     = 10e-3
+TElist = (2:5:40) .* 1e-3
+faPDw  = B1*6
+faT1w  = B1*18
 
-PDw_A = MRIutils.ernstd(faPDw, TR, R1)
-T1w_A = MRIutils.ernstd(faT1w, TR, R1)
+PDw_A = MRIutils.ernstd(faPDw, TR, R1, PD=A)
+T1w_A = MRIutils.ernstd(faT1w, TR, R1, PD=A)
 
-PDw = WeightedMultiechoContrast([WeightedContrast(A*PDw_A.signal*exp(-R2star * te), deg2rad(faPDw), TR, te) for te in TE])
-T1w = WeightedMultiechoContrast([WeightedContrast(A*T1w_A.signal*exp(-R2star * te), deg2rad(faT1w), TR, te) for te in TE])
+PDw = MRIutils.exponentialDecay(PDw_A, R2star, TElist)
+T1w = MRIutils.exponentialDecay(T1w_A, R2star, TElist)
 
 R2star_est, (PDw0, T1w0) = MRImaps.calculateR2star([PDw, T1w])
 

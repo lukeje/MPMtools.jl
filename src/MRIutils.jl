@@ -25,24 +25,25 @@ ernstangled(TR, R₁) = rad2deg(ernstangle(TR, R₁))
 
 
 """
-    ernst(α, TR, R₁)
+    ernst(α, TR, R₁[, PD=PD])
 
-Steady state signal from the Ernst equation for given flip angle α, TR, and R₁
+Steady state signal from the Ernst equation for given flip angle α, TR, and R₁.
+Optionally scale the signal by PD.
     
 α should be in radians, and time units of TR and R₁ should match.
 
-    ernst(α, TR, T1=T₁)
+    ernst(α, TR, T1=T₁[, PD=PD])
 
 Steady state signal using T₁ instead of R₁
 
 α should be in radians, and time units of TR and T₁ should match.
 """
-function ernst(α::Number, TR::Number, R₁::Number)
-    signal = sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
+function ernst(α::Number, TR::Number, R₁::Number; PD::Number=one(TR))
+    signal = PD * sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
     return WeightedContrast(signal, α, TR)
 end
 
-ernst(α, TR; T1::Number) = ernst(α, TR, one(T1)/T1)
+ernst(α, TR; T1::Number, PD=one(TR)) = ernst(α, TR, inv(T1), PD=PD)
 
 """
     ernstd(α, TR, R₁)
@@ -57,9 +58,19 @@ Steady state signal using T₁ instead of R₁.
 
 α should be in degrees, and time units of TR and R₁ should match.
 """
-ernstd(α, TR, R₁) = ernst(deg2rad(α), TR, R₁)
+ernstd(α, TR, R₁; PD=one(TR)) = ernst(deg2rad(α), TR, R₁, PD=PD)
 
-ernstd(α, TR; T1::Number) = ernstd(α, TR, one(T1)/T1)
+ernstd(α, TR; T1::Number, PD=one(TR)) = ernstd(α, TR, one(T1)/T1, PD=PD)
+
+"""
+    exponentialDecay(S::WeightedContrast, lambda, TElist)
+
+Scale signal of WeightedContrast by exponential decay S.signal = exp(-lambda * TE) for each TE in TElist.
+Returns a WeightedMultiechoContrast type.
+"""
+function exponentialDecay(S::WeightedContrast, lambda, TElist)
+    WeightedMultiechoContrast([WeightedContrast(S.signal*exp(-lambda * te), S.flipangle , S.TR, te) for te in TElist])
+end
 
 
 """
