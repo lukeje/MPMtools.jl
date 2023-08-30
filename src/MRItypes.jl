@@ -22,7 +22,7 @@ struct WeightedContrast
         @assert (TE ≥ 0) | ismissing(TE) "TE must be greater than or equal to zero or missing!"
 
         # populate τ field (half angle tangent transform) using provided flipangle
-        τ = 2tan(flipangle / 2)
+        τ = half_angle_tan(flipangle)
 
         new(signal, flipangle, TR, TE, τ)
     end
@@ -67,5 +67,17 @@ struct WeightedMultiechoContrast
     
 end
 
+
+"""
+    half_angle_tan(α)
+Compute half angle tangent transform of α, where α is in radians.
+Used to transform Ernst equation into analytically-soluble form.
+
+# Reference
+- Dathe and Helms, Phys. Med. Biol. (2010), "Exact algebraization of 
+    the signal equation of spoiled gradient echo MRI".
+    https://doi.org/10.1088/0031-9155/55/15/003
+"""
+half_angle_tan(α) = 2tan(0.5α)
 
 end

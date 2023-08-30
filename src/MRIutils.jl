@@ -2,6 +2,7 @@ module MRIutils
 
 using Optim
 using ..MRItypes
+using ..MRItypes: half_angle_tan
 
 """
     ernstangle(TR, R₁)
@@ -71,19 +72,6 @@ Returns a WeightedMultiechoContrast type.
 function exponentialDecay(S::WeightedContrast, lambda, TElist)
     WeightedMultiechoContrast([WeightedContrast(S.signal*exp(-lambda * te), S.flipangle , S.TR, te) for te in TElist])
 end
-
-
-"""
-    half_angle_tan(α)
-Compute half angle tangent transform of α, where α is in radians.
-Used to transform Ernst equation into analytically-soluble form.
-
-# Reference
-- Dathe and Helms, Phys. Med. Biol. (2010), "Exact algebraization of 
-    the signal equation of spoiled gradient echo MRI".
-    https://doi.org/10.1088/0031-9155/55/15/003
-"""
-half_angle_tan(α) = 2tan(0.5α)
 
 
 """
