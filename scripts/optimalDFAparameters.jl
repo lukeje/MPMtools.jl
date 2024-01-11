@@ -47,14 +47,15 @@ function parse_commandline()
             default  = 270.0
     end
 
-    add_arg_group!(s, "whether to optimise for \"PD\", \"R1\", or \"both\"", exclusive=true, required=true)
+    add_arg_group!(s, "whether to optimise for \"PD\", \"R1\", or \"both\". \"both\" requires an argument in [0,1] specifying the relative weighting of \"PD\" and \"R1\"", exclusive=true, required=true)
     @add_arg_table! s begin
         "--onlyPD"
             action = :store_true
         "--onlyR1"
             action = :store_true
         "--both"
-            action = :store_true
+            arg_type = Float64
+            default  = 0.5
     end
 
     return parse_args(s)
@@ -69,11 +70,11 @@ function main()
     TRsum  = parsed_args["scantime"]/parsed_args["nlines"]
 
     if parsed_args["onlyPD"]
-        PDorR1="PD"
+        PDorR1 = "PD"
     elseif parsed_args["onlyR1"]
-        PDorR1="R1"
-    elseif parsed_args["both"]
-        PDorR1="both"
+        PDorR1 = "R1"
+    else 
+        PDorR1 = parsed_args["both"]
     end
     
     @assert (TRsum > 2TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."

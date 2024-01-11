@@ -222,7 +222,7 @@ end
 
 
 """
-    α1, α2, TR1, TR2 = optimalDFAparameters(TRsum, R₁[, PDorR1=("R1" | "PD" | "both"), TRmin=0.0, FAmax=3π/2])
+    α1, α2, TR1, TR2 = optimalDFAparameters(TRsum, R₁[, PDorR1=("R1" | "PD" | "both" | x ∈ [0,1]), TRmin=0.0, FAmax=3π/2])
 
 Optimal repetition times and flip angles for estimating R₁ and/or PD from dual flip angle R1 mapping.
 
@@ -233,7 +233,7 @@ Optimal repetition times and flip angles for estimating R₁ and/or PD from dual
 # Reference
 - TBC
 """
-function optimalDFAparameters(TRsum, R₁; PDorR1::String="R1", TRmin=0.0, FAmax=3π/2)
+function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2)
     
     @assert (TRsum > 2TRmin) "The requested TRsum is not consistent with the minimal TR. Please relax your input parameters and try again."
 
@@ -245,16 +245,24 @@ function optimalDFAparameters(TRsum, R₁; PDorR1::String="R1", TRmin=0.0, FAmax
 
     # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
     if PDorR1=="PD"
+        PDR1fraction = 0.0
+    elseif PDorR1=="R1"
+        PDR1fraction = 1.0
+    elseif isa(PDorR1,Number) && (0.0 <= PDorR1 <= 1.0)
+        PDR1fraction = PDorR1
+    else
+        error("PDorR1 must be either \"PD\", \"R1\", or a relative weighting in [0,1]. Was $(PDorR1).")
+    end
+
+    if PDR1fraction==0.0
         fitfun = x -> dPD(dargs(x)...)
         initialoptimum = "PD"
-    elseif PDorR1=="R1"
+    elseif PDR1fraction==1.0
         fitfun = x -> dR1(dargs(x)...)
         initialoptimum = "R1"
-    elseif PDorR1=="both"
-        fitfun = x -> dPD(dargs(x)...) + dR1(dargs(x)...)/R₁
-        initialoptimum = "PD"
     else
-        error("PDorR1 must be either \"PD\", \"R1\", or \"both\". Was $(PDorR1).")
+        fitfun = x -> PDR1fraction*dPD(dargs(x)...) + (1.0 - PDR1fraction)*dR1(dargs(x)...)/R₁
+        initialoptimum = "PD"
     end
 
     # start from optimum for equal TRs
