@@ -255,13 +255,13 @@ function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,Number}="R1", TR
     end
 
     if PDR1fraction==0.0
-        fitfun = x -> dPD(dargs(x)...)
+        fitfun = x -> dPD(dargs(x)...)^2
         initialoptimum = "PD"
     elseif PDR1fraction==1.0
-        fitfun = x -> dR1(dargs(x)...)
+        fitfun = x -> dR1(dargs(x)...)^2
         initialoptimum = "R1"
     else
-        fitfun = x -> (1.0 - PDR1fraction)*dPD(dargs(x)...) + PDR1fraction*dR1(dargs(x)...)/R₁
+        fitfun = x -> (1.0 - PDR1fraction)*dPD(dargs(x)...)^2 + PDR1fraction*(dR1(dargs(x)...)/R₁)^2
         initialoptimum = "PD"
     end
 
