@@ -311,8 +311,9 @@ function optimalDFAparameters(TR1, TR2, R₁; PDorR1::Union{String,Number}="R1",
     angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
     x0 = [angles[1], angles[2]]
 
-    opt = optimize(fitfun, [0.0, 0.0], [FAmax, FAmax], x0)
-    xopt = opt.minimizer
+    # check both orders of initial flip angle guesses
+    opt = [optimize(fitfun, [0.0, 0.0], [FAmax, FAmax], x) for x in (x0, reverse(x0))]
+    xopt = opt[argmin(o.minimum for o in opt)].minimizer
 
     # α1, α2, TR1, TR2
     return xopt[1], xopt[2], TR1, TR2
