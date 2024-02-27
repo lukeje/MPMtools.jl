@@ -278,6 +278,45 @@ function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,Number}="R1", TR
     return xopt[1], xopt[2], xopt[3], constrainedTR2(xopt[3], xopt[4])
 end
 
+function optimalDFAparameters(TR1, TR2, R₁; PDorR1::Union{String,Number}="R1", FAmax=3π/2)
+
+    # dPD and dR1 have same argument list, so define them here rather than repeating them below
+    dargs(x) = ( R₁, 1.0, 1.0, x[1], x[2], TR1, TR2 )
+
+    # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
+    if PDorR1=="PD"
+        PDR1fraction = 0.0
+    elseif PDorR1=="R1"
+        PDR1fraction = 1.0
+    elseif isa(PDorR1,Number) && (0.0 <= PDorR1 <= 1.0)
+        PDR1fraction = PDorR1
+    else
+        error("PDorR1 must be either \"PD\", \"R1\", or a relative weighting in [0,1]. Was $(PDorR1).")
+    end
+
+    if PDR1fraction==0.0
+        fitfun = x -> dPD(dargs(x)...)^2
+        initialoptimum = "PD"
+    elseif PDR1fraction==1.0
+        fitfun = x -> dR1(dargs(x)...)^2
+        initialoptimum = "R1"
+    else
+        fitfun = x -> (1.0 - PDR1fraction)*dPD(dargs(x)...)^2 + PDR1fraction*(dR1(dargs(x)...)/R₁)^2
+        initialoptimum = "PD"
+    end
+
+    # start from optimum for equal TRs
+    # -0.01 so that optimiser does not start on edge of allowed range
+    angles = optimalDFAangles((TR1+TR2)/2, R₁, initialoptimum)
+    angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
+    x0 = [angles[1], angles[2]]
+
+    opt = optimize(fitfun, [0.0, 0.0], [FAmax, FAmax], x0)
+    xopt = opt.minimizer
+
+    # α1, α2, TR1, TR2
+    return xopt[1], xopt[2], TR1, TR2
+end
 
 """
     inversionRecovery(R₁, TI, η)
