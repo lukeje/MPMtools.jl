@@ -269,10 +269,11 @@ function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,Number}="R1", TR
     # -0.01 so that optimiser does not start on edge of allowed range
     angles = optimalDFAangles(TRsum/2, R₁, initialoptimum)
     angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
-    x0 = [angles[1], angles[2], TRsum/2, 1.0 - 0.01]
+    x0(angles) = [angles..., TRsum/2, 1.0 - 0.01]
 
-    opt = optimize(fitfun, [0.0, 0.0, TRmin, 0.0], [FAmax, FAmax, TRsum-TRmin, 1.0], x0)
-    xopt = opt.minimizer
+    # check both orders of initial flip angle guesses
+    opt = [optimize(fitfun, [0.0, 0.0, TRmin, 0.0], [FAmax, FAmax, TRsum-TRmin, 1.0], x0(a)) for a in (angles, reverse(angles))]
+    xopt = opt[argmin(o.minimum for o in opt)].minimizer
 
     # α1, α2, TR1, TR2
     return xopt[1], xopt[2], xopt[3], constrainedTR2(xopt[3], xopt[4])
