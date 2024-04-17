@@ -27,3 +27,8 @@ R1_est = MRImaps.calculateR1(PDw0, T1w0)
 @test A_est ≈ A
 @test R1_est ≈ R1 rtol=1e-5
 @test R2star_est ≈ R2star
+
+(A_est,T1_est)  = MRImaps.calculateT1([PDw0, T1w0])
+
+@test A_est ≈ A
+@test T1_est ≈ (1/R1) rtol=1e-5

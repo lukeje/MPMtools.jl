@@ -74,6 +74,43 @@ end
 
 
 """
+    calculateT1([PDw::WeightedContrast, T1w::WeightedContrast, ...])
+
+Calculate T1 map from any number of weighted signals
+
+# Arguments
+PDw and T1w are both of type WeightedContrast
+
+# Output
+T1 (in TR units)
+
+# Examples
+```juliarepl
+PDw = WeightedContrast(signal_pdw, fa_pdw, tr_pdw)
+T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w)
+T1 = calculateR1([PDw, T1w])
+```
+
+# References
+- Helms et al. Magn. Reson. Med. (2011), "Identification of signal bias in the variable flip angle method by linear display of the algebraic ernst equation", [doi:10.1002/mrm.22849](https://doi.org/10.1002/mrm.22849)
+"""
+function calculateT1(weighted::Vector{WeightedContrast})
+
+    @assert all(size(w.signal)==size(first(weighted).signal) for w in weighted) "All weighted data must be the same size!"
+    
+    S  = [w.signal for w in weighted]
+    τ  = [w.τ      for w in weighted]
+    TR = [w.TR     for w in weighted]
+
+    y = S./τ
+    D = hcat(ones(length(weighted)), -S.*τ./(2TR))
+
+    (A,T1) = D\y
+
+end
+
+
+"""
     calculateR2star(weighted_data)
 
 R2* estimation using an implementation of the ESTATICS model (Weiskopf2014)
