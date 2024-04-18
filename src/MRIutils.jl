@@ -1,6 +1,7 @@
 module MRIutils
 
 using Optim
+using LinearAlgebra
 using ..MRItypes
 using ..MRItypes: half_angle_tan
 
@@ -179,6 +180,73 @@ dPD(R₁,dSPD,dST1,α_PD,α_T1,TRPD,TRT1) = dPD(ernst(α_PD,TRPD,R₁),ernst(α_
 
 
 """
+    dT1([SPD,ST1,...], [dSPD,dST1,...])
+Calculate propagation of uncertainty for T1 and A map.
+
+In:
+- SPD:  PDw WeightedContrast at TE=0
+- ST1:  T1w WeightedContrast at TE=0
+- dSPD: residual of mono-exponential fit of PDw signal
+- dST1: residual of mono-exponential fit of T1w signal
+
+Out: error for A and R1 in reciprocal units of TR units
+
+    dR1(R₁,PD,dSPD,dST1)
+Calculate propagation of uncertainty for R1 map using synthetic signal values for given R₁.
+
+In:
+- α_PD: flip angle of PDw signal in radians
+- α_T1: flip angle of T1w signal in radians
+- TRPD: repetition time of PDw signal
+- TRT1: repetition time of T1w signal
+- dSPD: variance of PDw signal
+- dST1: variance of T1w signal
+
+Out: error for A in arbitrary units and T1 in TR units
+
+# References
+- https://en.wikipedia.org/wiki/Propagation_of_uncertainty
+- Mohammadi et al. NeuroImage (2022), "Error quantification in
+    multi-parameter mapping facilitates robust estimation and enhanced
+    group level sensitivity"
+    https://doi.org/10.1016/j.neuroimage.2022.119529
+- Helms et al. Magn. Reson. Med. (2011), "Identification of signal bias 
+    in the variable flip angle method by linear display of the 
+    algebraic ernst equation", 
+    [doi:10.1002/mrm.22849](https://doi.org/10.1002/mrm.22849)
+    
+"""
+function dT1(W::Vector{WeightedContrast},dS::Vector{<:Number})
+
+    S  = [w.signal for w in W]
+    τ  = [w.τ      for w in W]
+    TR = [w.TR     for w in W]
+
+    y = S./τ
+    D = hcat(ones(length(S)), -S.*τ./(2TR))
+
+    dA  = zero(eltype(S))
+    dT1 = zero(eltype(S))
+    for n in 1:length(S)
+        y′ = zero(y)
+        y′[n] = one(S[n])/τ[n]
+
+        D′ = zero(D)
+        D′[n,2] = -one(S[n])*τ[n]/(2TR[n])
+
+        σ = D\(y′ .- D′*(D\y))
+
+        dA  += σ[1]^2*dS[n]^2
+        dT1 += σ[2]^2*dS[n]^2
+    end
+    
+    return (sqrt(dA),sqrt(dT1)) 
+end
+
+dT1(R₁,dS,α,TR) = dT1([ernst(α,TR,R₁) for (α,TR) in zip(α,TR)],dS)
+
+
+"""
     optimalDFAangles(TR, R₁[, PDorR1=("R1" | "PD")])
 
 Optimal flip angles for estimating R₁ or PD from dual flip angle R1 mapping in radians.
@@ -319,6 +387,70 @@ function optimalDFAparameters(TR1, TR2, R₁; PDorR1::Union{String,Number}="R1",
     # α1, α2, TR1, TR2
     return xopt[1], xopt[2], TR1, TR2
 end
+
+"""
+    α, TR = optimalVFAparameters(TRsum, R₁, nvolumes[, PDorR1=("R1" | "PD" | "both" | x ∈ [0,1]), TRmin=0.0, FAmax=3π/2])
+
+Optimal repetition times and flip angles for estimating R₁ and/or PD from dual flip angle R1 mapping.
+
+# Notes
+- Units of TRsum, R₁, and TRmin must be consistent. Output TRs will be in the same units.
+- All angles are in radians.
+
+# Reference
+- TBC
+"""
+function optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2)
+    
+    @assert (TRsum > nvolumes*TRmin) "The requested TRsum is not consistent with the minimal TR. Please relax your input parameters and try again."
+
+    # computes allowed TR2 ∈ [TRmin, TRsum - TRmin] given fit parameters s ∈ [0,1] and TR1 ∈ [TRmin, TRsum - TRmin]
+    function constrainedTR2(TR1, S)
+        TR = [TR1]
+        tsum = TR1
+        for (i,s) in pairs(S)
+            push!(TR,(TRsum - tsum - (length(S)-i+1)*TRmin)*s + TRmin)
+            tsum += last(TR)
+        end
+        return TR
+    end
+
+    # choose the fitting function based on which quantitative parameter the output parameters should be optimal for estimating
+    if PDorR1=="PD"
+        PDT1fraction = 0.0
+    elseif PDorR1=="R1"
+        PDT1fraction = 1.0
+    elseif isa(PDorR1,Number) && (0.0 <= PDorR1 <= 1.0)
+        PDT1fraction = PDorR1
+    else
+        error("PDorR1 must be either \"PD\", \"R1\", or a relative weighting in [0,1]. Was $(PDorR1).")
+    end
+
+    if PDT1fraction==0.0
+        fitfun = x -> first(dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
+        initialoptimum = "PD"
+    elseif PDT1fraction==1.0
+        fitfun = x -> last(dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
+        initialoptimum = "R1"
+    else
+        fitfun = x -> dot([one(PDT1fraction) - PDT1fraction, PDT1fraction*(R₁^2)], dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])).^2)
+        initialoptimum = "PD"
+    end
+
+    # start from optimum for equal TRs
+    # -0.01 so that optimiser does not start on edge of allowed range
+    angles = range(optimalDFAangles(TRsum/nvolumes, R₁, initialoptimum)...,nvolumes)
+    angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
+    x0(angles) = vcat(angles, TRsum/nvolumes, ones(Float64,nvolumes) .- 0.01)
+
+    lower = vcat(zeros(Float64,nvolumes),      TRmin,       zeros(Float64,nvolumes-1))
+    upper = vcat(ones(Float64,nvolumes)*FAmax, TRsum-TRmin, ones(Float64,nvolumes-1))
+    xopt = optimize(fitfun, lower, upper, x0(angles))
+    
+    # α1, α2, TR1, TR2
+    return xopt[begin:nvolumes], constrainedTR2(xopt[nvolumes+1],xopt[nvolumes+2:end])
+end
+
 
 """
     inversionRecovery(R₁, TI, η)

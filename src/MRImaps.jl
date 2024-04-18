@@ -88,7 +88,7 @@ T1 (in TR units)
 ```juliarepl
 PDw = WeightedContrast(signal_pdw, fa_pdw, tr_pdw)
 T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w)
-T1 = calculateR1([PDw, T1w])
+(A,T1) = calculateR1([PDw, T1w])
 ```
 
 # References
