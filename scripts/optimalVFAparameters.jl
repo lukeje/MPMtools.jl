@@ -84,14 +84,14 @@ function main()
     
     @assert (TRsum > 2TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
-    xopt = optimalVFAparameters(TRsum, R1, nvols, PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
+    FA,TR = optimalVFAparameters(TRsum, R1, nvols, PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
 
     # precision in output
     rounddigit(x) = round(x; digits=2)
 
-    for n in 1:nvolumes
-        println("α$(n):  $(rounddigit(rad2deg(xopt[n])))°")
-        println("TR$(n): $(rounddigit(1e3*xopt[nvolumes+n])) ms")
+    for n in 1:nvols
+        println("α$(n):  $(rounddigit(rad2deg(FA[n])))°")
+        println("TR$(n): $(rounddigit(1e3*TR[n])) ms")
     end
 
 end

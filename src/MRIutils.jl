@@ -236,8 +236,8 @@ function dT1(W::Vector{WeightedContrast},dS::Vector{<:Number})
 
         σ = D\(y′ .- D′*(D\y))
 
-        dA  += σ[1]^2*dS[n]^2
-        dT1 += σ[2]^2*dS[n]^2
+        dA  += first(σ)^2 * dS[n]^2
+        dT1 += last(σ)^2  * dS[n]^2
     end
     
     return (sqrt(dA),sqrt(dT1)) 
@@ -430,10 +430,11 @@ function optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number
         fitfun = x -> first(dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
         initialoptimum = "PD"
     elseif PDT1fraction==1.0
-        fitfun = x -> last(dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
+        fitfun = x -> last( dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
         initialoptimum = "R1"
     else
-        fitfun = x -> dot([one(PDT1fraction) - PDT1fraction, PDT1fraction*(R₁^2)], dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])).^2)
+        fitfun = x -> dot([one(PDT1fraction) - PDT1fraction, PDT1fraction*(R₁^2)], 
+                            dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])).^2)
         initialoptimum = "PD"
     end
 
@@ -441,11 +442,13 @@ function optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number
     # -0.01 so that optimiser does not start on edge of allowed range
     angles = range(optimalDFAangles(TRsum/nvolumes, R₁, initialoptimum)...,nvolumes)
     angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
-    x0(angles) = vcat(angles, TRsum/nvolumes, ones(Float64,nvolumes) .- 0.01)
+    x0(angles) = vcat(angles, TRsum/nvolumes, ones(Float64,nvolumes-1) .- 0.01)
 
     lower = vcat(zeros(Float64,nvolumes),      TRmin,       zeros(Float64,nvolumes-1))
-    upper = vcat(ones(Float64,nvolumes)*FAmax, TRsum-TRmin, ones(Float64,nvolumes-1))
-    xopt = optimize(fitfun, lower, upper, x0(angles))
+    upper = vcat(ones(Float64,nvolumes)*FAmax, TRsum-TRmin, ones( Float64,nvolumes-1))
+
+    opt = optimize(fitfun, lower, upper, x0(angles))
+    xopt = opt.minimizer
     
     # α1, α2, TR1, TR2
     return xopt[begin:nvolumes], constrainedTR2(xopt[nvolumes+1],xopt[nvolumes+2:end])
