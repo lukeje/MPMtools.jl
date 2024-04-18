@@ -191,8 +191,8 @@ In:
 
 Out: error for A and R1 in reciprocal units of TR units
 
-    dR1(R₁,PD,dSPD,dST1)
-Calculate propagation of uncertainty for R1 map using synthetic signal values for given R₁.
+    dT1(R₁,[dSPD,dST1,...],[αPD,αT1,...],,[TRPD,TRT1,...])
+Calculate propagation of uncertainty for T1 and A map using synthetic signal values for given R₁.
 
 In:
 - α_PD: flip angle of PDw signal in radians
