@@ -290,7 +290,7 @@ end
 
 
 """
-    α1, α2, TR1, TR2 = optimalDFAparameters(TRsum, R₁[, PDorR1=("R1" | "PD" | "both" | x ∈ [0,1]), TRmin=0.0, FAmax=3π/2])
+    α1, α2, TR1, TR2 = optimalDFAparameters(TRsum, R₁[, PDorR1=("R1" | "PD" | x ∈ [0,1]), TRmin=0.0, FAmax=3π/2])
 
 Optimal repetition times and flip angles for estimating R₁ and/or PD from dual flip angle R1 mapping.
 
@@ -389,7 +389,7 @@ function optimalDFAparameters(TR1, TR2, R₁; PDorR1::Union{String,Number}="R1",
 end
 
 """
-    α, TR = optimalVFAparameters(TRsum, R₁, nvolumes[, PDorR1=("R1" | "PD" | "both" | x ∈ [0,1]), TRmin=0.0, FAmax=3π/2])
+    α, TR = optimalVFAparameters(TRsum, R₁, nvolumes[, PDorR1=("R1" | "PD" | x ∈ [0,1]), TRmin=0.0, FAmax=3π/2])
 
 Optimal repetition times and flip angles for estimating R₁ and/or PD from dual flip angle R1 mapping.
 
@@ -400,7 +400,7 @@ Optimal repetition times and flip angles for estimating R₁ and/or PD from dual
 # Reference
 - TBC
 """
-function optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2)
+function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2)
     
     @assert (TRsum > nvolumes*TRmin) "The requested TRsum is not consistent with the minimal TR. Please relax your input parameters and try again."
 
@@ -426,15 +426,23 @@ function optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number
         error("PDorR1 must be either \"PD\", \"R1\", or a relative weighting in [0,1]. Was $(PDorR1).")
     end
 
+    function dT1_2(α,TR)
+        d = zeros(Float64,2)
+        for b in B1 
+            d .+= dT1(R₁, ones(Float64,nvolumes), b.*α, TR).^2
+        end
+        return d
+    end
+
     if PDT1fraction==0.0
-        fitfun = x -> first(dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
+        fitfun = x -> first(dT1_2(x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))
         initialoptimum = "PD"
     elseif PDT1fraction==1.0
-        fitfun = x -> last( dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))^2
+        fitfun = x -> last( dT1_2(x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))
         initialoptimum = "R1"
     else
         fitfun = x -> dot([one(PDT1fraction) - PDT1fraction, PDT1fraction*(R₁^2)], 
-                            dT1(R₁, ones(Float64,nvolumes), x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])).^2)
+                            dT1_2(x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))
         initialoptimum = "PD"
     end
 
@@ -454,6 +462,8 @@ function optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number
     return xopt[begin:nvolumes], constrainedTR2(xopt[nvolumes+1],xopt[nvolumes+2:end])
 end
 
+optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2) = 
+    optimalVFAparameters(TRsum, R₁, nvolumes, one(R₁):one(R₁); PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
 
 """
     inversionRecovery(R₁, TI, η)

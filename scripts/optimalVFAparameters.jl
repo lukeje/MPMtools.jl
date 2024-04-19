@@ -49,6 +49,12 @@ function parse_commandline()
             required = false
             arg_type = Float64
             default  = 270.0
+        "--B1range"
+            help = "minimum, interval, and maximum of points in B1 range to optimise over in fractions of nominal flip angle"
+            required = false
+            arg_type = Float64
+            nargs    = 3
+            default  = [1.0,1.0,1.0]
     end
 
     add_arg_group!(s, "whether to optimise for \"PD\", \"R1\", or \"both\". \"both\" requires an argument in [0,1] specifying the relative weighting of \"PD\" and \"R1\"", exclusive=true, required=true)
@@ -73,6 +79,7 @@ function main()
     TRmin  = parsed_args["TRmin"]
     FAmax  = deg2rad(parsed_args["FAmax"])
     TRsum  = parsed_args["scantime"]/parsed_args["nlines"]
+    B1     = range(start=parsed_args["B1range"][1],step=parsed_args["B1range"][2],stop=parsed_args["B1range"][3])
 
     if parsed_args["onlyPD"]
         PDorR1 = "PD"
@@ -84,7 +91,7 @@ function main()
     
     @assert (TRsum > 2TRmin) "The requested scantime and number of lines is not consistent with the minimal TR. Please relax your input parameters and try again."
 
-    FA,TR = optimalVFAparameters(TRsum, R1, nvols, PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
+    FA,TR = optimalVFAparameters(TRsum, R1, nvols, B1, PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
 
     # precision in output
     rounddigit(x) = round(x; digits=2)
