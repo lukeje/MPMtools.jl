@@ -116,12 +116,13 @@ end
 R2* estimation using an implementation of the ESTATICS model (Weiskopf2014)
 
 # Arguments
-array of WeightedMultiechoContrast (one per contrast)
-- Voxels must correspond between the weightings (i.e. the images should have been resliced to the same space), but the sampled TEs may be
-    different.
-- Because log(0) is ill-defined, zero values in any voxel will result in NaN output for that voxel. To avoid potentially biasing the data,
-    we do not modify the input in any way to avoid this, and leave it to the user to decide how to handle this case, e.g. by removing the
-    corresponding voxels from the input data or replacing zeroes with a small positive number.
+- array of WeightedMultiechoContrast (one per contrast)
+    - Voxels must correspond between the weightings (i.e. the images should have been resliced to the same space), but the sampled TEs may be
+      different.
+    - Because log(0) is ill-defined, zero values in any voxel will result in NaN output for that voxel. To avoid potentially biasing the data,
+      we do not modify the input in any way to avoid this, and leave it to the user to decide how to handle this case, e.g. by removing the
+      corresponding voxels from the input data or replacing zeroes with a small positive number.
+- niter: number of iterations if weighted least squares is to be used. Default is 0 (ordinary least squares)
 
 # Outputs
 R2star: the estimated common R2* of the weightings.
@@ -134,6 +135,7 @@ TBD
 
 # References:
 - Weiskopf et al. Front. Neurosci. (2014), "Estimating the apparent transverse relaxation time (R2*) from images with different contrasts (ESTATICS) reduces motion artifacts", [doi:10.3389/fnins.2014.00278](https://doi.org/10.3389/fnins.2014.00278)
+- Edwards et al. Proc. Int. Soc. Magn. Reson. Med. (2022), "Robust and efficient R2* estimation in human brain using log-linear weighted least squares"
 """
 function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; niter=0)
 
@@ -185,5 +187,61 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; n
 
     return R2star, extrapolated
 end
+
+
+"""
+    dR2star([SPD,ST1,...], [dSPD,dST1,...])
+Calculate propagation of uncertainty for T1 and A map.
+
+In: ...
+
+Out: ...
+
+# References
+- https://en.wikipedia.org/wiki/Propagation_of_uncertainty
+- ...
+    
+"""
+function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast},dS::Vector{<:Number})
+    
+    T = Float64
+        
+    nweighted = length(weighted_dataList)
+    
+    # Build design matrix D and response variable y
+    D   = Matrix{T}(undef, 0, nweighted+1)
+    y   = Vector{T}(undef, 0)
+    dSy = Vector{T}(undef, 0)
+    for wIdx = eachindex(weighted_dataList)
+        w = weighted_dataList[wIdx]
+        nTEs = length(w.TE)
+
+        d = hcat(-T.(w.TE), zeros(T, nTEs, wIdx-1), ones(T, nTEs, 1), zeros(T, nTEs, nweighted-wIdx))
+        D = vcat(D, d)
+        
+        append!(y,   T.(w.signal))
+        append!(dSy, T.(fill(dS[wIdx],nTEs)))
+    end
+
+    d = zeros(T,nweighted + 1)
+    for n in 1:length(y)
+        logy′ = zero(y)
+        logy′[n] = one(y[n])/y[n]
+
+        W = diagm(y.^2)
+
+        # ignore dependence of weights on signal for now
+        σ = (transpose(D) * W * D) \ (transpose(D) * W * logy′)
+
+        d .+= (σ .* dSy[n]).^2
+    end
+
+    _,S0 = calculateR2star(weighted_dataList; niter=0)
+    
+    return sqrt.(vcat(d[1], (S0.signal^2 * d for (S0,d) in zip(S0,d[2:end]))...))
+end
+
+dR2star(R₁,R2star,dS,α,TR,TE) = dT1([exponentialDecay(ernst(α,TR,R₁),R2star,TE) for (α,TR,TE) in zip(α,TR,TE)],dS)
+
 
 end

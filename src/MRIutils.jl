@@ -225,8 +225,7 @@ function dT1(W::Vector{WeightedContrast},dS::Vector{<:Number})
     y = S./τ
     D = hcat(ones(length(S)), -S.*τ./(2TR))
 
-    dA  = zero(eltype(S))
-    dT1 = zero(eltype(S))
+    d = zeros(eltype(S),2)
     for n in 1:length(S)
         y′ = zero(y)
         y′[n] = one(S[n])/τ[n]
@@ -236,11 +235,10 @@ function dT1(W::Vector{WeightedContrast},dS::Vector{<:Number})
 
         σ = D\(y′ .- D′*(D\y))
 
-        dA  += first(σ)^2 * dS[n]^2
-        dT1 += last(σ)^2  * dS[n]^2
+        d .+= (σ .* dS[n]).^2
     end
     
-    return (sqrt(dA),sqrt(dT1)) 
+    return sqrt.(d)
 end
 
 dT1(R₁,dS,α,TR) = dT1([ernst(α,TR,R₁) for (α,TR) in zip(α,TR)],dS)
