@@ -135,7 +135,7 @@ TBD
 # References:
 - Weiskopf et al. Front. Neurosci. (2014), "Estimating the apparent transverse relaxation time (R2*) from images with different contrasts (ESTATICS) reduces motion artifacts", [doi:10.3389/fnins.2014.00278](https://doi.org/10.3389/fnins.2014.00278)
 """
-function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
+function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; niter=0)
 
     T = Float64
         
@@ -163,9 +163,16 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
             (if the data magnitudes are ≈ 1) or 1 if the data are integer-valued. Note: Care must be taken when replacing 
             values, as this could bias the R2* estimation."""
     end
-    
-    # Estimate R2*
-    β = (transpose(D) * D) \ (transpose(D) * log.(y))
+
+    # Estimate R2* using iterative weighted least squares
+    S = ones(T,length(y))
+    logy = log.(y)
+    for iter in 0:niter # zeroth iteration is OLS
+        W = diagm(S.^2)
+        W = W ./ tr(W)
+        global β = (transpose(D) * W * D) \ (transpose(D) * W * logy)
+        S = exp.(D*β)
+    end
 
     # Output
     R2star = β[1]
@@ -178,6 +185,5 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast})
 
     return R2star, extrapolated
 end
-
 
 end
