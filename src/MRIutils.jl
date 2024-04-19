@@ -407,6 +407,7 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
     # computes allowed TR2 ∈ [TRmin, TRsum - TRmin] given fit parameters s ∈ [0,1] and TR1 ∈ [TRmin, TRsum - TRmin]
     function constrainedTR2(TR1, S)
         TR = [TR1]
+        sizehint!(TR,length(S)+1)
         tsum = TR1
         for (i,s) in pairs(S)
             push!(TR,(TRsum - tsum - (length(S)-i+1)*TRmin)*s + TRmin)
@@ -452,13 +453,13 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
     angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
     x0(angles) = vcat(angles, TRsum/nvolumes, ones(Float64,nvolumes-1) .- 0.01)
 
-    lower = vcat(zeros(Float64,nvolumes),      TRmin,       zeros(Float64,nvolumes-1))
-    upper = vcat(ones(Float64,nvolumes)*FAmax, TRsum-TRmin, ones( Float64,nvolumes-1))
+    lower = vcat(zeros(Float64,nvolumes),      TRmin,                    zeros(Float64,nvolumes-1))
+    upper = vcat(ones(Float64,nvolumes)*FAmax, TRsum-(nvolumes-1)*TRmin, ones(Float64,nvolumes-1))
 
     opt = optimize(fitfun, lower, upper, x0(angles))
     xopt = opt.minimizer
     
-    # α1, α2, TR1, TR2
+    # [α1, α2, ...], [TR1, TR2, ...]
     return xopt[begin:nvolumes], constrainedTR2(xopt[nvolumes+1],xopt[nvolumes+2:end])
 end
 
