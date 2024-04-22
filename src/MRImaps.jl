@@ -2,6 +2,7 @@ module MRImaps
 
 using LinearAlgebra
 using ..MRItypes
+using ..MRIutils
 
 """
     calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
@@ -202,7 +203,7 @@ Out: ...
 - ...
     
 """
-function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast}, dS::Vector{<:Number}, S0::Vector{WeightedContrast})
+function dR2star(weighted_dataList, dS, S0)
     
     T = Float64
         
@@ -240,14 +241,14 @@ function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast}, dS::Vecto
     return sqrt(d[1]), sqrt.(S0.signal^2 * d for (S0,d) in zip(S0,d[2:end]))
 end
 
-function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast}, dS::Vector{<:Number})
+function dR2star(weighted_dataList, dS)
     _,S0 = calculateR2star(weighted_dataList; niter=0)
     dR2star(weighted_dataList,dS,S0)
 end
 
 function dR2star(R₁,R2star,dS,α,TR,TE)
-    S0 = (ernst(α,TR,R₁) for (α,TR) in zip(α,TR))
-    dR2star([exponentialDecay(S0,R2star,TE) for (S0,TE) in zip(S0,TE)], dS, S0)
+    S0 = (MRIutils.ernst(α,TR,R₁) for (α,TR) in zip(α,TR))
+    dR2star([MRIutils.exponentialDecay(S0,R2star,TE) for (S0,TE) in zip(S0,TE)], dS, S0)
 end
 
 

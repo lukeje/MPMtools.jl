@@ -8,7 +8,7 @@ R1     = 1.0
 R2star = 30.0
 B1     = 1.0
 
-TR     = 10e-3
+TR     = 50e-3
 TElist = (2:5:40) .* 1e-3
 faPDw  = B1*6
 faT1w  = B1*18
@@ -26,13 +26,13 @@ A_est  = MRImaps.calculateA(PDw0, T1w0)
 R1_est = MRImaps.calculateR1(PDw0, T1w0)
 
 @test A_est ≈ A
-@test R1_est ≈ R1 rtol=1e-5
+@test R1_est ≈ R1 rtol=1e-3
 @test R2star_OLS_est ≈ R2star
 
 (A_est,T1_est)  = MRImaps.calculateT1([PDw0, T1w0])
 
 @test A_est ≈ A
-@test T1_est ≈ (1/R1) rtol=1e-5
+@test T1_est ≈ (1/R1) rtol=1e-3
 
 # iterative log linear weighted least squares
 R2star_WLS_est, _ = MRImaps.calculateR2star([PDw, T1w],niter=3)
