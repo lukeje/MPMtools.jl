@@ -202,7 +202,7 @@ Out: ...
 - ...
     
 """
-function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast},dS::Vector{<:Number})
+function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast}, dS::Vector{<:Number}, S0::Vector{WeightedContrast})
     
     T = Float64
         
@@ -229,6 +229,7 @@ function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast},dS::Vector
         logy′[n] = one(y[n])/y[n]
 
         W = diagm(y.^2)
+        W ./= tr(W)
 
         # ignore dependence of weights on signal for now
         σ = (transpose(D) * W * D) \ (transpose(D) * W * logy′)
@@ -236,12 +237,18 @@ function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast},dS::Vector
         d .+= (σ .* dSy[n]).^2
     end
 
-    _,S0 = calculateR2star(weighted_dataList; niter=0)
-    
-    return sqrt.(vcat(d[1], (S0.signal^2 * d for (S0,d) in zip(S0,d[2:end]))...))
+    return sqrt(d[1]), sqrt.(S0.signal^2 * d for (S0,d) in zip(S0,d[2:end]))
 end
 
-dR2star(R₁,R2star,dS,α,TR,TE) = dT1([exponentialDecay(ernst(α,TR,R₁),R2star,TE) for (α,TR,TE) in zip(α,TR,TE)],dS)
+function dR2star(weighted_dataList::Vector{WeightedMultiechoContrast}, dS::Vector{<:Number})
+    _,S0 = calculateR2star(weighted_dataList; niter=0)
+    dR2star(weighted_dataList,dS,S0)
+end
+
+function dR2star(R₁,R2star,dS,α,TR,TE)
+    S0 = (ernst(α,TR,R₁) for (α,TR) in zip(α,TR))
+    dR2star([exponentialDecay(S0,R2star,TE) for (S0,TE) in zip(S0,TE)], dS, S0)
+end
 
 
 end
