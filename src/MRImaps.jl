@@ -225,9 +225,9 @@ function dR2star(weighted_dataList, dS, S0)
     end
 
     d = zeros(T,nweighted + 1)
-    for n in 1:length(y)
+    for (n,yloc) = pairs(y)
         logy′ = zero(y)
-        logy′[n] = one(y[n])/y[n]
+        logy′[n] = one(yloc)/yloc
 
         W = diagm(y.^2)
         W ./= tr(W)
