@@ -226,12 +226,12 @@ function dT1(W::Vector{WeightedContrast},dS::Vector{<:Number})
     D = hcat(ones(length(S)), -S.*τ./(2TR))
 
     d = zeros(eltype(S),2)
-    for n in 1:length(S)
+    for (n,s) in pairs(S)
         y′ = zero(y)
-        y′[n] = one(S[n])/τ[n]
+        y′[n] = one(s)/τ[n]
 
         D′ = zero(D)
-        D′[n,2] = -one(S[n])*τ[n]/(2TR[n])
+        D′[n,2] = -one(s)*τ[n]/(2TR[n])
 
         σ = D\(y′ .- D′*(D\y))
 
