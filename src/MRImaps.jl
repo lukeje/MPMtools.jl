@@ -171,6 +171,7 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; n
     S = ones(T,length(y))
     logy = log.(y)
     for iter in 0:niter # zeroth iteration is OLS
+        S[isnan.(S)] .= 0.0 # remove any NaN values from weights
         W = diagm(S.^2)
         W = W ./ tr(W)
         global β = (transpose(D) * W * D) \ (transpose(D) * W * logy)
