@@ -168,12 +168,20 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; n
     end
 
     # Estimate R2* using iterative weighted least squares
-    S = ones(T,length(y))
+    S = ones(T,length(y)) # run at least one iteration with OLS
     logy = log.(y)
     for iter in 0:niter # zeroth iteration is OLS
-        S[isnan.(S)] .= 0.0 # remove any NaN values from weights
-        W = diagm(S.^2)
-        W = tr(W) > 0 ? W ./ tr(W) : I
+        # prevent any NaN signals from being used in the estimation
+        S[isnan.(S)] .= 0.0
+
+        S2 = S.^2
+        
+        # return earlier iteration (usually OLS result) if all signals are zero
+        # in current iteration
+        sum(S2) == 0 && break
+
+        W = diagm(S2)
+
         global β = (transpose(D) * W * D) \ (transpose(D) * W * logy)
         S = exp.(D*β)
     end
