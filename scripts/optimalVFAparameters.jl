@@ -23,10 +23,6 @@ function parse_commandline()
                """
 
     @add_arg_table! s begin
-        "nlines"
-            help = "number of acquired lines"
-            required = true
-            arg_type = Float64
         "scantime"
             help = "acquisition time to fill (s)"
             required = true
@@ -35,10 +31,17 @@ function parse_commandline()
             help = "representative R1 rate (1/s)"
             required = true
             arg_type = Float64
-        "nvolumes"
-            help = "number of volumes to use"
-            required = true
+            nargs    = '*'
+        "--nlines"
+            help = "number of acquired lines"
+            required = false
             arg_type = Int64
+            default  = 1
+        "--nvolumes"
+            help = "number of volumes to use"
+            required = false
+            arg_type = Int64
+            default  = 2
         "--TRmin"
             help = "minimum TR for readout and excitation (s)"
             required = false

@@ -428,7 +428,7 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
 
     function dT1_2(α,TR)
         d = zeros(Float64,2)
-        for b in B1, r in R1
+        for b in B1, r in R₁
             d .+= dT1(r, ones(Float64,nvolumes), b.*α, TR).^2
         end
         return d
