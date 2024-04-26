@@ -28,7 +28,7 @@ function parse_commandline()
             required = true
             arg_type = Float64
         "R1"
-            help = "representative R1 rate (1/s)"
+            help = "representative R1 rate(s) (1/s)"
             required = true
             arg_type = Float64
             nargs    = '*'

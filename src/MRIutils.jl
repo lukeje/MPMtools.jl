@@ -429,7 +429,7 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
     function dT1_2(α,TR)
         d = zeros(Float64,2)
         for b in B1, r in R₁
-            d .+= dT1(r, ones(Float64,nvolumes), b.*α, TR).^2
+            d .+= ((one(r),r).*dT1(r, ones(Float64,nvolumes), b.*α, TR)).^2
         end
         return d
     end
@@ -441,7 +441,7 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
         fitfun = x -> last( dT1_2(x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))
         initialoptimum = "R1"
     else
-        fitfun = x -> dot([one(PDT1fraction) - PDT1fraction, PDT1fraction*(R₁^2)], 
+        fitfun = x -> dot([one(PDT1fraction) - PDT1fraction, PDT1fraction], 
                             dT1_2(x[begin:nvolumes], constrainedTR2(x[nvolumes+1],x[nvolumes+2:end])))
         initialoptimum = "PD"
     end
