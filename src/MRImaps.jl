@@ -247,7 +247,7 @@ function dR2star(weighted_dataList, dS, S0)
         d .+= (σ .* dSy[n]).^2
     end
 
-    return sqrt(d[1]), sqrt.(S0.signal^2 * d for (S0,d) in zip(S0,d[2:end]))
+    return sqrt(d[1]), sqrt.(S0.signal^2 * d for (S0,d) in zip(S0,d[begin+1:end]))
 end
 
 function dR2star(weighted_dataList, dS)

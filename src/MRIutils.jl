@@ -14,7 +14,7 @@ Angle maximising the Ernst equation in radians for given TR and R₁.
 # Reference
 - Equation (11.52), BKZ, "Handbook of MRI Pulse Sequences" (2004)
 """
-ernstangle(TR::Number, R₁::Number) = acos(exp(-TR * R₁))
+ernstangle(TR, R₁) = acos(exp(-TR * R₁))
 
 """
     ernstangled(TR, R₁)
@@ -41,12 +41,12 @@ Steady state signal using T₁ instead of R₁
 
 α should be in radians, and time units of TR and T₁ should match.
 """
-function ernst(α::Number, TR::Number, R₁::Number; PD::Number=one(TR))
+function ernst(α, TR, R₁; PD=one(TR))
     signal = PD * sin(α) * (1 - exp(-TR * R₁)) / (1 - cos(α) * exp(-TR * R₁))
     return WeightedContrast(signal, α, TR)
 end
 
-ernst(α, TR; T1::Number, PD=one(TR)) = ernst(α, TR, inv(T1), PD=PD)
+ernst(α, TR; T1, PD=one(TR)) = ernst(α, TR, inv(T1), PD=PD)
 
 """
     ernstd(α, TR, R₁)
@@ -63,7 +63,7 @@ Steady state signal using T₁ instead of R₁.
 """
 ernstd(α, TR, R₁; PD=one(TR)) = ernst(deg2rad(α), TR, R₁, PD=PD)
 
-ernstd(α, TR; T1::Number, PD=one(TR)) = ernstd(α, TR, one(T1)/T1, PD=PD)
+ernstd(α, TR; T1, PD=one(TR)) = ernstd(α, TR, one(T1)/T1, PD=PD)
 
 """
     exponentialDecay(S::WeightedContrast, lambda, TElist)
@@ -108,7 +108,7 @@ Out: error for R1 in reciprocal units of TR units
     group level sensitivity"
     https://doi.org/10.1016/j.neuroimage.2022.119529
 """
-function dR1(SPD::WeightedContrast,ST1::WeightedContrast,dSPD::Number,dST1::Number)
+function dR1(SPD::WeightedContrast,ST1::WeightedContrast,dSPD,dST1)
 
     """
     Derivative of dual flip-angle R1 estimate with respect to first weighted 
@@ -160,7 +160,7 @@ Out: error for A in arbitrary units (a.u.)
     group level sensitivity." 
     https://doi.org/10.1016/j.neuroimage.2022.119529
 """
-function dPD(SPD::WeightedContrast,ST1::WeightedContrast,dSPD::Number,dST1::Number)
+function dPD(SPD::WeightedContrast,ST1::WeightedContrast,dSPD,dST1)
 
     """
     Derivative of dual flip-angle A (PD) estimate with respect to first 
@@ -255,7 +255,7 @@ Optimal flip angles for estimating R₁ or PD from dual flip angle R1 mapping in
     the signal equation of spoiled gradient echo MRI".
     https://doi.org/10.1088/0031-9155/55/15/003 
 """
-function optimalDFAangles(TR::Number, R₁::Number, PDorR1::String="R1")
+function optimalDFAangles(TR, R₁, PDorR1::String="R1")
 
     if PDorR1 == "PD"
         # Equation (27)
@@ -300,7 +300,7 @@ Optimal repetition times and flip angles for estimating R₁ and/or PD from dual
 # Reference
 - TBC
 """
-function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2)
+function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,<:Number}="R1", TRmin=0.0, FAmax=3π/2)
     
     @assert (TRsum > 2TRmin) "The requested TRsum is not consistent with the minimal TR. Please relax your input parameters and try again."
 
@@ -346,7 +346,7 @@ function optimalDFAparameters(TRsum, R₁; PDorR1::Union{String,Number}="R1", TR
     return xopt[1], xopt[2], xopt[3], constrainedTR2(xopt[3], xopt[4])
 end
 
-function optimalDFAparameters(TR1, TR2, R₁; PDorR1::Union{String,Number}="R1", FAmax=3π/2)
+function optimalDFAparameters(TR1, TR2, R₁; PDorR1::Union{String,<:Number}="R1", FAmax=3π/2)
 
     # dPD and dR1 have same argument list, so define them here rather than repeating them below
     dargs(x) = ( R₁, 1.0, 1.0, x[1], x[2], TR1, TR2 )
@@ -399,7 +399,7 @@ Optimal repetition times and flip angles for estimating R₁ and/or PD from dual
 # Reference
 - TBC
 """
-function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2)
+function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,<:Number}="R1", TRmin=0.0, FAmax=3π/2)
     
     @assert (TRsum > nvolumes*TRmin) "The requested TRsum is not consistent with the minimal TR. Please relax your input parameters and try again."
 
@@ -462,7 +462,7 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
     return xopt[begin:nvolumes], constrainedTR2(xopt[nvolumes+1],xopt[nvolumes+2:end])
 end
 
-optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,Number}="R1", TRmin=0.0, FAmax=3π/2) = 
+optimalVFAparameters(TRsum, R₁, nvolumes; PDorR1::Union{String,<:Number}="R1", TRmin=0.0, FAmax=3π/2) = 
     optimalVFAparameters(TRsum, R₁, nvolumes, one(R₁):one(R₁); PDorR1=PDorR1, TRmin=TRmin, FAmax=FAmax)
 
 """
@@ -474,7 +474,7 @@ The long-TR inversion recovery signal for given R₁, inversion time TI and inve
 
 The long-TR inversion recovery signal for given R₁ and inversion time TI assuming perfect inversion (η = 1)
 """
-function inversionRecovery(R₁::Number, TI::Number, η::Number)
+function inversionRecovery(R₁, TI, η)
 
     @assert (0 < η ≤ 1) "Inversion efficiency η must be between 0 and 1"
     

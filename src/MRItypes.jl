@@ -9,9 +9,9 @@ Composite type to store variable flip angle (VFA) MRI data
 """
 struct WeightedContrast
     signal
-    flipangle::Number
-    TR::Number
-    TE::Union{Number,Missing}
+    flipangle
+    TR
+    TE::Union{<:Number,Missing}
     τ
 
     # define explicit inner constructor as τ is computed from the input
@@ -38,10 +38,10 @@ WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR
 Vector type to store multiecho variable flip angle (VFA) MRI data
 """
 struct WeightedMultiechoContrast
-    signal::Vector{Number}
-    flipangle::Number
-    TR::Number
-    TE::Vector{Number}
+    signal::Vector{<:Number}
+    flipangle
+    TR
+    TE::Vector{<:Number}
     τ
 
     # use constructor to check consistency of data
