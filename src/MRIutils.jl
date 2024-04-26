@@ -2,6 +2,7 @@ module MRIutils
 
 using Optim
 using LinearAlgebra
+using Statistics: mean
 using ..MRItypes
 using ..MRItypes: half_angle_tan
 
@@ -427,8 +428,8 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
 
     function dT1_2(α,TR)
         d = zeros(Float64,2)
-        for b in B1 
-            d .+= dT1(R₁, ones(Float64,nvolumes), b.*α, TR).^2
+        for b in B1, r in R1
+            d .+= dT1(r, ones(Float64,nvolumes), b.*α, TR).^2
         end
         return d
     end
@@ -447,7 +448,7 @@ function optimalVFAparameters(TRsum, R₁, nvolumes, B1; PDorR1::Union{String,Nu
 
     # start from optimum for equal TRs
     # -0.01 so that optimiser does not start on edge of allowed range
-    angles = range(optimalDFAangles(TRsum/nvolumes, R₁, initialoptimum)...,nvolumes)
+    angles = range(optimalDFAangles(TRsum/nvolumes, mean(R₁), initialoptimum)...,nvolumes)
     angles = min.(angles, FAmax - 0.01) # enforce FAmax in initial conditions
     x0(angles) = vcat(angles, TRsum/nvolumes, ones(Float64,nvolumes-1) .- 0.01)
 
