@@ -238,8 +238,10 @@ function dR2star(weighted_dataList, dS, S0)
         logy′ = zero(y)
         logy′[n] = one(yloc)/yloc
 
-        W = diagm(y.^2)
-        W ./= tr(W)
+        # use OLS solution if trace of weight matrix zero
+        # to match R2star calculation
+        y2 = y.^2
+        sum(y2) == 0 ? W = I : W = diagm(y2) ./ sum(y2)
 
         # ignore dependence of weights on signal for now
         σ = (transpose(D) * W * D) \ (transpose(D) * W * logy′)
