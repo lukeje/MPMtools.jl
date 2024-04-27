@@ -10,14 +10,14 @@ function parse_commandline()
                examples: \n
                1. Given a matrix size of 100×100, a maximum scan time of 12 minutes, and a typical R1 of 1.25 / s,
                the optimal TR and flip angle pair can be computed using:\n
-               \ua0\ua0julia $(s.prog) \$((100*100)) \$((12*60)) 1.25 --onlyR1\n
+               \ua0\ua0julia $(s.prog) --nlines \$((100*100)) \$((12*60)) 1.25 --onlyR1\n
                \n\n
                2. If we know the minimum and maximum TR values rather than having a maximum scan time, 
                then we can specify a minimum TR (here 18.7 ms), 
                the sum of the TR values as the scan time (here 18.7 ms + 23.7 ms),
-               and set the number of lines to 1. 
+               and leave the number of lines at the default (1). 
                Here we also specify a maximum flip angle of 20°:\n
-               \ua0\ua0julia $(s.prog) 1 0.0424 1.25 \\\n
+               \ua0\ua0julia $(s.prog) 0.0424 1.25 \\\n
                \ua0\ua0\ua0\ua0--TRmin 0.0187 --onlyR1 --FAmax 20\n
                This case reproduces the result from Weiskopf, et al. (2013, https://doi.org/10.3389/fnins.2013.00095).
                """
@@ -57,6 +57,7 @@ function parse_commandline()
             required = false
             arg_type = Float64
             nargs    = 3
+            metavar  = ["MIN","INCREMENT","MAX"]
             default  = [1.0,1.0,1.0]
     end
 
@@ -69,6 +70,7 @@ function parse_commandline()
         "--both"
             arg_type = Float64
             default  = 0.5
+            metavar  = "PD/R1_WEIGHT"
     end
 
     return parse_args(s)
