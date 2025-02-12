@@ -1,6 +1,6 @@
 module MRItypes
 
-export WeightedContrast, WeightedMultiechoContrast
+export WeightedContrast, WeightedMultiechoContrast, SESTEcontrast
 
 """
     WeightedContrast(signal, flipangle, TR[, TE, TM=0])
@@ -32,6 +32,27 @@ end
 
 # outer constructor: TE missing if not provided
 WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR, missing)
+
+"""
+    SESTEcontrast(signal, flipangle, TR[, TE, TM=0])
+
+Composite type to store spin echo (SE)/stimulated echo (STE) MRI data
+"""
+struct SESTEcontrast
+    SE::WeightedContrast
+    STE::WeightedContrast
+
+    function SESTEcontrast(SE,STE)
+        # check contrasts are consistent
+        # we do not check TE, as this might be different or not depending on definition
+        @assert size(SE.signal) == size(STE.signal)
+        @assert SE.flipangle == STE.flipangle
+        @assert SE.TR == STE.TR
+        @assert SE.TM == STE.TM
+
+        new(SE,STE)
+    end
+end
 
 
 """

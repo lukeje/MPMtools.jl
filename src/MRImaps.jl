@@ -3,6 +3,8 @@ module MRImaps
 using LinearAlgebra
 using ..MRItypes
 using ..MRIutils
+using Statistics: std
+using Combinatorics: with_replacement_combinations
 
 """
     calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
@@ -266,8 +268,38 @@ function dR2star(R₁,R2star,dS,α,TR,TE)
     dR2star([MRIutils.exponentialDecay(S0,R2star,TE) for (S0,TE) in zip(S0,TE)], dS, S0)
 end
 
-function calculateSESTEB1(SE::WeightedContrast,STE::WeightedContrast)
-    
+
+"""
+    calculateSESTEB1(W, nominalR1, nse=5, nambiguousangles=2)
+Calculate B1 estimates for data acquired using a spin echo (SE)/stimulated echo (STE) protocol.
+Expects as input a vector of SE/STE contrast pairs each acquired with a different nominal flip 
+angle. A typical R1 value `nominalR1` is used in the correction of R1 decay during the mixing 
+time. The first `nse` of these pairs with the highest SE intensities will be used for the 
+calculation. As the data is typically magnitude only, the actual angles are ambiguous. The code
+will check for up to `nwraps` wraps in the data. Setting this value too high will massively
+slow down the computation and lead to very high background values, so `nwraps` = 1 or 2 is a
+good choice, depending on the expected range of inhomogeneity.
+
+"""
+function calculateSESTEB1(W::Vector{SESTEcontrast}, nominalR1, nse=5, nwraps=2)
+    nominalfa = (w.SE.flipangle for w in W)
+    wrappedfa = stack((@. acos(exp(w.STE.TM*nominalR1) * w.STE.signal / w.SE.signal) for w in W), dims=1) ./ nominalfa
+
+    B1 = similar(first(W).SE.signal)
+    p = floor(-nwraps/2):floor(nwraps/2)
+    for c in CartesianIndices(first(W).SE.signal)
+        σ = Inf64
+        ihise = sortperm(w.SE.signal[c],rev=true)[begin:nse]
+        y = view(wrappedfa,ihise,c)
+        for p in with_replacement_combinations(p,nse)
+            y′ = @. abs(y + p*π/nominalfa)
+            if std(y′) < σ
+                B1[c] = mean(y′)
+                σ = std(y′)
+            end
+        end
+    end
+    return B1
 end
 
 
