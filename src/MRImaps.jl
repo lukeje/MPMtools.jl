@@ -29,7 +29,7 @@ A = calculateA(PDw, T1w)
 function calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
 
     @assert all(size(PDw.signal)==size(T1w.signal)) "PDw.signal and T1w.signal must be the same size!"
-    @assert (PDw.TR ≠ T1w.TR) | (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
+    @assert (PDw.TR ≠ T1w.TR) || (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
 
     return @. PDw.signal * T1w.signal * ( T1w.TR * PDw.τ / T1w.τ - PDw.TR * T1w.τ / PDw.τ )  / ( PDw.signal * T1w.TR * PDw.τ - T1w.signal * PDw.TR * T1w.τ )
 end
@@ -60,7 +60,7 @@ R1 = calculateR1(PDw, T1w)
 function calculateR1(PDw::WeightedContrast, T1w::WeightedContrast)
 
     @assert all(size(PDw.signal)==size(T1w.signal)) "PDw.signal and T1w.signal must be the same size!"
-    @assert (PDw.TR ≠ T1w.TR) | (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
+    @assert (PDw.TR ≠ T1w.TR) || (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
 
     return @. 0.5 * ( PDw.signal * PDw.τ / PDw.TR - T1w.signal * T1w.τ / T1w.TR ) / ( T1w.signal / T1w.τ - PDw.signal / PDw.τ )
 end
@@ -264,6 +264,10 @@ end
 function dR2star(R₁,R2star,dS,α,TR,TE)
     S0 = (MRIutils.ernst(α,TR,R₁) for (α,TR) in zip(α,TR))
     dR2star([MRIutils.exponentialDecay(S0,R2star,TE) for (S0,TE) in zip(S0,TE)], dS, S0)
+end
+
+function calculateSESTEB1(SE::WeightedContrast,STE::WeightedContrast)
+    
 end
 
 

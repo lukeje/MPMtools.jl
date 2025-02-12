@@ -3,7 +3,7 @@ module MRItypes
 export WeightedContrast, WeightedMultiechoContrast
 
 """
-    WeightedContrast(signal, flipangle, TR[, TE])
+    WeightedContrast(signal, flipangle, TR[, TE, TM=0])
 
 Composite type to store variable flip angle (VFA) MRI data
 """
@@ -13,22 +13,24 @@ struct WeightedContrast
     TR
     TE::Union{<:Number,Missing}
     τ
+    TM
 
     # define explicit inner constructor as τ is computed from the input
     # and we need to check some parameter bounds
-    function WeightedContrast(signal, flipangle, TR, TE)
+    function WeightedContrast(signal, flipangle, TR, TE, TM=zero(TR))
 
-        @assert (TR > zero(TR)) "TR must be greater than zero!"
-        @assert (TE ≥ zero(TE)) || ismissing(TE) "TE must be greater than or equal to zero or missing!"
+        @assert                  TR > zero(TR) "TR must be greater than zero!"
+        @assert ismissing(TE) || TE ≥ zero(TE) "TE must be greater than or equal to zero or missing!"
+        @assert                  TM ≥ zero(TR) "TM must be greater than zero!"
 
         # populate τ field (half angle tangent transform) using provided flipangle
         τ = half_angle_tan(flipangle)
 
-        new(signal, flipangle, TR, TE, τ)
+        new(signal, flipangle, TR, TE, τ, TM)
     end
 end
 
-# outer constructor: TE is missing if not provided
+# outer constructor: TE missing if not provided
 WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR, missing)
 
 
@@ -43,6 +45,7 @@ struct WeightedMultiechoContrast
     TR
     TE
     τ
+    TM
 
     # use constructor to check consistency of data
     function WeightedMultiechoContrast(echoList::Vector{WeightedContrast})
@@ -52,13 +55,14 @@ struct WeightedMultiechoContrast
         TR = first(echoList).TR
         TE = (w.TE for w in echoList)
         τ = first(echoList).τ
+        TM = first(echoList).TM
 
         for w in echoList
             @assert w.flipangle == flipangle "All flip angles must match!"
             @assert w.TR == TR "All TRs must match!"
         end
 
-        new(signal,flipangle,TR,TE,τ)
+        new(signal,flipangle,TR,TE,τ,TM)
     end
     
 end
