@@ -18,8 +18,8 @@ struct WeightedContrast
     # and we need to check some parameter bounds
     function WeightedContrast(signal, flipangle, TR, TE)
 
-        @assert (TR > 0) "TR must be greater than zero!"
-        @assert (TE ≥ 0) | ismissing(TE) "TE must be greater than or equal to zero or missing!"
+        @assert (TR > zero(TR)) "TR must be greater than zero!"
+        @assert (TE ≥ zero(TE)) || ismissing(TE) "TE must be greater than or equal to zero or missing!"
 
         # populate τ field (half angle tangent transform) using provided flipangle
         τ = half_angle_tan(flipangle)
@@ -38,29 +38,25 @@ WeightedContrast(signal, flipangle, TR) = WeightedContrast(signal, flipangle, TR
 Vector type to store multiecho variable flip angle (VFA) MRI data
 """
 struct WeightedMultiechoContrast
-    signal::Vector{<:Number}
+    signal
     flipangle
     TR
-    TE::Vector{<:Number}
+    TE
     τ
 
     # use constructor to check consistency of data
     function WeightedMultiechoContrast(echoList::Vector{WeightedContrast})
-        @assert length(echoList) > 1 "WeightedMultiechoContrast requires more than one element!"
-        
-        signal = [w.signal for w in echoList]
-        flipangle = echoList[1].flipangle
-        TR = echoList[1].TR
-        TE = [w.TE for w in echoList]
-        τ = echoList[1].τ
+
+        signal = stack((w.signal for w in echoList),dims=1)
+        flipangle = first(echoList).flipangle
+        TR = first(echoList).TR
+        TE = (w.TE for w in echoList)
+        τ = first(echoList).τ
 
         for w in echoList
             @assert w.flipangle == flipangle "All flip angles must match!"
             @assert w.TR == TR "All TRs must match!"
-            @assert w.TE > 0 "All TEs must be greater than zero!"
         end
-
-        @assert (length(unique(TE)) > 1) "There must be more than one unique TE!"
 
         new(signal,flipangle,TR,TE,τ)
     end

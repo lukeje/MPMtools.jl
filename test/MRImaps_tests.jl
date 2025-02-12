@@ -21,20 +21,20 @@ T1w = MRIutils.exponentialDecay(T1w_A, R2star, TElist)
 
 # log linear ordinary least squares
 R2star_OLS_est, (PDw0, T1w0) = MRImaps.calculateR2star([PDw, T1w])
+@test R2star_OLS_est[] ≈ R2star
 
 A_est  = MRImaps.calculateA(PDw0, T1w0)
+@test A_est[] ≈ A
+
 R1_est = MRImaps.calculateR1(PDw0, T1w0)
+@test R1_est[] ≈ R1 rtol=1e-3
 
-@test A_est ≈ A
-@test R1_est ≈ R1 rtol=1e-3
-@test R2star_OLS_est ≈ R2star
+(A_est,T1_est) = MRImaps.calculateT1([PDw0, T1w0])
 
-(A_est,T1_est)  = MRImaps.calculateT1([PDw0, T1w0])
-
-@test A_est ≈ A
-@test T1_est ≈ (1/R1) rtol=1e-3
+@test A_est[] ≈ A
+@test T1_est[] ≈ (1/R1) rtol=1e-3
 
 # iterative log linear weighted least squares
 R2star_WLS_est, _ = MRImaps.calculateR2star([PDw, T1w],niter=3)
 
-@test R2star_WLS_est ≈ R2star
+@test R2star_WLS_est[] ≈ R2star

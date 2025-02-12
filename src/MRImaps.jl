@@ -27,15 +27,11 @@ A = calculateA(PDw, T1w)
 - Edwards et al.  Magn. Reson. Mater. Phy. (2021), "Rational approximation of the Ernst equation for dual angle R1 mapping revisited: beyond the small flip-angle assumption" in Book of Abstracts ESMRMB 2021, [doi:10.1007/s10334-021-00947-8](https://doi.org/10.1007/s10334-021-00947-8)
 """
 function calculateA(PDw::WeightedContrast, T1w::WeightedContrast)
-    
+
     @assert all(size(PDw.signal)==size(T1w.signal)) "PDw.signal and T1w.signal must be the same size!"
     @assert (PDw.TR ≠ T1w.TR) | (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
-    
-    if (PDw.signal ≠ 0) & (T1w.signal ≠ 0) & (PDw.τ ≠ 0) & (T1w.τ ≠ 0)
-        return PDw.signal * T1w.signal * ( T1w.TR * PDw.τ / T1w.τ - PDw.TR * T1w.τ / PDw.τ )  / ( PDw.signal * T1w.TR * PDw.τ - T1w.signal * PDw.TR * T1w.τ )
-    else # cannot get sensible answer
-        return missing
-    end
+
+    return @. PDw.signal * T1w.signal * ( T1w.TR * PDw.τ / T1w.τ - PDw.TR * T1w.τ / PDw.τ )  / ( PDw.signal * T1w.TR * PDw.τ - T1w.signal * PDw.TR * T1w.τ )
 end
 
 
@@ -65,12 +61,8 @@ function calculateR1(PDw::WeightedContrast, T1w::WeightedContrast)
 
     @assert all(size(PDw.signal)==size(T1w.signal)) "PDw.signal and T1w.signal must be the same size!"
     @assert (PDw.TR ≠ T1w.TR) | (PDw.τ ≠ T1w.τ) "PDw and T1w data must differ in either TR or flip angle!"
-        
-    if (PDw.signal ≠ 0) & (T1w.signal ≠ 0) & (PDw.τ ≠ 0) & (T1w.τ ≠ 0)
-        return  0.5 * ( PDw.signal * PDw.τ / PDw.TR - T1w.signal * T1w.τ / T1w.TR ) / ( T1w.signal / T1w.τ - PDw.signal / PDw.τ )
-    else # cannot get sensible answer
-        return missing
-    end
+
+    return @. 0.5 * ( PDw.signal * PDw.τ / PDw.TR - T1w.signal * T1w.τ / T1w.TR ) / ( T1w.signal / T1w.τ - PDw.signal / PDw.τ )
 end
 
 
@@ -99,17 +91,26 @@ function calculateT1(weighted::Vector{WeightedContrast})
 
     @assert all(size(w.signal)==size(first(weighted).signal) for w in weighted) "All weighted data must be the same size!"
     
-    S  = [w.signal for w in weighted]
-    τ  = [w.τ      for w in weighted]
-    TR = [w.TR     for w in weighted]
+    #TODO: include case where τ varies per voxel
+    S  = stack((w.signal for w in weighted), dims=1)
+    τ  = stack((w.τ      for w in weighted), dims=1)
+    TR = stack((w.TR     for w in weighted), dims=1)
 
-    y = S./τ
-    D = hcat(ones(length(weighted)), -S.*τ./(2TR))
+    A  = similar(first(weighted).signal)
+    T1 = similar(A)
+    for i in eachindex(A)
+        (A[i],T1[i]) = _calculateT1(S[:,i],τ,TR)
+    end
 
-    (A,T1) = D\y
+    return A,T1
 
 end
+function _calculateT1(S,τ,TR)
+    y = S./τ
+    D = hcat(ones(eltype(S),length(S)), -S.*τ./(2TR))
 
+    (A,T1) = D\y
+end
 
 """
     calculateR2star(weighted_data)
@@ -141,24 +142,24 @@ TBD
 function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; niter=0)
 
     T = Float64
-        
+
     nWeighted = length(weighted_dataList)
-    
+    nVoxels = size(first(weighted_dataList).signal)[2:end]
+
     # Build design matrix D and response variable y
     D = Matrix{T}(undef, 0, nWeighted+1)
-    y = Vector{T}(undef, 0)
-    for wIdx = eachindex(weighted_dataList)
-        w = weighted_dataList[wIdx]
+    for (i,w) in enumerate(weighted_dataList)
         nTEs = length(w.TE)
 
-        d = hcat(-T.(w.TE), zeros(T, nTEs, wIdx-1), ones(T, nTEs, 1), zeros(T, nTEs, nWeighted-wIdx))
+        d = hcat(-T.(w.TE), zeros(T, nTEs, i-1), ones(T, nTEs, 1), zeros(T, nTEs, nWeighted-i))
         D = vcat(D, d)
-        
-        append!(y, T.(w.signal))
+
+        @assert size(w.signal)[2:end] == nVoxels "all weighted data must have the same number of voxels"
     end
 
-    # log(0) is not defined, so warn the user about zeroes in their data 
-    # for methods involving a log transform.
+    y = reduce(vcat, (T.(w.signal) for w in weighted_dataList))
+
+    # log(0) is not defined, so warn the user about zeroes in their data
     if any(y .== 0)
         @warn """Zero values detected in the input data. This will cause estimation to fail in these voxels due to the log 
             transform. If these voxels are background voxels, consider removing them from the input data matrices. 
@@ -168,34 +169,37 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; n
     end
 
     # Estimate R2* using iterative weighted least squares
-    S = ones(T,length(y)) # run at least one iteration with OLS
-    logy = log.(y)
-    for iter in 0:niter # zeroth iteration is OLS
-        # prevent any NaN signals from being used in the estimation
-        S[isnan.(S)] .= 0.0
+    R2star = Array{T}(undef,(isempty(nVoxels) ? 1 : nVoxels)...)
+    extrapolated = Array{T}(undef,nWeighted,(isempty(nVoxels) ? 1 : nVoxels)...)
+    for v in CartesianIndices(size(y)[begin+1:end])
+        yloc = view(y,:,v)
 
-        S2 = S.^2
-        
-        # return earlier iteration (usually OLS result) if all signals are zero
-        # in current iteration
-        sum(S2) == 0 && break
+        if any(isnan.(yloc))
+            R2star[v] = T(NaN)
+            extrapolated[:,v] .= T(NaN)
+        else
+            S = ones(T,length(yloc)) # run at least one iteration with OLS
+            logy = log.(yloc)
+            for iter in 0:niter # zeroth iteration is OLS
+                S2 = S.^2
+                
+                # return earlier iteration (usually OLS result) if all signals are zero
+                # in current iteration
+                sum(S2) == zero(T) && break
 
-        W = diagm(S2)
+                W = diagm(S2)
 
-        global β = (transpose(D) * W * D) \ (transpose(D) * W * logy)
-        S = exp.(D*β)
+                global β = (transpose(D) * W * D) \ (transpose(D) * W * logy)
+                S = exp.(D*β)
+            end
+
+            # Output
+            R2star[v] = β[begin]
+            extrapolated[:,v] = exp.(β[begin+1:end])
+        end
     end
 
-    # Output
-    R2star = β[1]
-
-    extrapolated = Vector{WeightedContrast}(undef,0)
-    for wIdx = eachindex(weighted_dataList)
-        w = weighted_dataList[wIdx]
-        push!(extrapolated, WeightedContrast(exp(β[wIdx+1]), w.flipangle, w.TR, zero(w.TE[1])))
-    end
-
-    return R2star, extrapolated
+    return R2star, [WeightedContrast(b, w.flipangle, w.TR, zero(first(w.TE))) for (w,b) in zip(weighted_dataList,eachslice(extrapolated,dims=1))]
 end
 
 
