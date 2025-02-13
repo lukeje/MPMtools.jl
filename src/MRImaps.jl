@@ -3,7 +3,7 @@ module MRImaps
 using LinearAlgebra
 using ..MRItypes
 using ..MRIutils
-using Statistics: std
+using Statistics: std, mean
 using Combinatorics: with_replacement_combinations
 
 """
@@ -282,17 +282,17 @@ good choice, depending on the expected range of inhomogeneity.
 
 """
 function calculateSESTEB1(W::Vector{SESTEcontrast}, nominalR1, nse=5, nwraps=2)
-    nominalfa = (w.SE.flipangle for w in W)
+    nominalfa = [w.SE.flipangle for w in W]
     wrappedfa = stack((@. acos(exp(w.STE.TM*nominalR1) * w.STE.signal / w.SE.signal) for w in W), dims=1) ./ nominalfa
 
     B1 = similar(first(W).SE.signal)
     p = floor(-nwraps/2):floor(nwraps/2)
     for c in CartesianIndices(first(W).SE.signal)
         σ = Inf64
-        ihise = sortperm(w.SE.signal[c],rev=true)[begin:nse]
+        ihise = sortperm([w.SE.signal[c] for w in W],rev=true)[begin:nse]
         y = view(wrappedfa,ihise,c)
         for p in with_replacement_combinations(p,nse)
-            y′ = @. abs(y + p*π/nominalfa)
+            y′ = @. abs(y + p*π/nominalfa[ihise])
             if std(y′) < σ
                 B1[c] = mean(y′)
                 σ = std(y′)
