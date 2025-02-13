@@ -100,7 +100,7 @@ function calculateT1(weighted::Vector{WeightedContrast})
 
     A  = similar(first(weighted).signal)
     T1 = similar(A)
-    for i in eachindex(A)
+    for i in CartesianIndices(A)
         (A[i],T1[i]) = _calculateT1(S[:,i],τ,TR)
     end
 
