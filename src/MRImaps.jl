@@ -283,7 +283,7 @@ good choice, depending on the expected range of inhomogeneity.
 """
 function calculateSESTEB1(W::Vector{SESTEcontrast}, nominalR1, nse=5, nwraps=2)
     nominalfa = [w.SE.flipangle for w in W]
-    wrappedfa = stack((@. acos(exp(w.STE.TM*nominalR1) * w.STE.signal / w.SE.signal) for w in W), dims=1) ./ nominalfa
+    wrappedfa = stack((@. real(acos(complex(exp(w.STE.TM*nominalR1) * w.STE.signal / w.SE.signal))) for w in W), dims=1) ./ nominalfa
 
     B1 = similar(first(W).SE.signal)
     p = floor(-nwraps/2):floor(nwraps/2)
