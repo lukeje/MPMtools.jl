@@ -92,25 +92,31 @@ T1w = WeightedContrast(signal_t1w, fa_t1w, tr_t1w)
 function calculateT1(weighted::Vector{WeightedContrast})
 
     @assert all(size(w.signal)==size(first(weighted).signal) for w in weighted) "All weighted data must be the same size!"
-    
-    #TODO: include case where τ varies per voxel
+    @assert length(weighted)>1 "More than one weighted dataset must be provided"
+
     S  = stack((w.signal for w in weighted), dims=1)
     τ  = stack((w.τ      for w in weighted), dims=1)
     TR = stack((w.TR     for w in weighted), dims=1)
 
     A  = similar(first(weighted).signal)
     T1 = similar(A)
-    for i in CartesianIndices(A)
-        (A[i],T1[i]) = _calculateT1(S[:,i],τ,TR)
+    # includes case where τ is constant and where τ varies per voxel
+    for i in eachindex(IndexCartesian(),A)
+        (A[i],T1[i]) = _calculateT1(S[:,i],τ[:,ndims(τ)>1 ? i : firstindex(τ,2)],TR)
     end
 
     return A,T1
 
 end
 function _calculateT1(S,τ,TR)
-    y = S./τ
-    D = hcat(ones(eltype(S),length(S)), -S.*τ./(2TR))
+    T = eltype(S)
 
+    y = S./τ
+
+    # do not proceed if there are inf or nan values
+    !all(isfinite.(y)) && return (T(NaN),T(NaN))
+
+    D = hcat(ones(eltype(S),length(S)), -S.*τ./(2TR))
     (A,T1) = D\y
 end
 
@@ -156,7 +162,7 @@ function calculateR2star(weighted_dataList::Vector{WeightedMultiechoContrast}; n
         d = hcat(-T.(w.TE), zeros(T, nTEs, i-1), ones(T, nTEs, 1), zeros(T, nTEs, nWeighted-i))
         D = vcat(D, d)
 
-        @assert size(w.signal)[2:end] == nVoxels "all weighted data must have the same number of voxels"
+        @assert size(w.signal)[begin+1:end] == nVoxels "all weighted data must have the same number of voxels"
     end
 
     y = reduce(vcat, (T.(w.signal) for w in weighted_dataList))

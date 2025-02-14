@@ -24,7 +24,7 @@ struct WeightedContrast
         @assert                  TM ≥ zero(TR) "TM must be greater than zero!"
 
         # populate τ field (half angle tangent transform) using provided flipangle
-        τ = half_angle_tan(flipangle)
+        τ = half_angle_tan.(flipangle)
 
         new(signal, flipangle, TR, TE, τ, TM)
     end
